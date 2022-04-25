@@ -122,6 +122,14 @@ ensured by also overriding the `_new_empty_scores` method.
 Additionally, the resulting class implements a `__array__` method which simply
 returns the instance's `_slots` variable (similar to the `scores` property).
 
+Finally, by adding instance variables `_available_slots` and
+`_next_available_slots`, which are reset at each call to `pre_filling_action`,
+`fill_slot` and `post_filling_action`, multiple calls to `get_available_slots`
+and `get_next_available_slots` between which no changes were made to the
+column are now sped-up.  This is achieved by saving values returned by
+`get_available_slots` and `get_next_available_slots` methods to the variables
+respectively, and returning the saved values when possible.
+
 Parameters
 ----------
 cls : type[engine.Column], default = engine.Column
@@ -144,6 +152,13 @@ Raises
 TypeError
     If `cls` is not a subclass of `engine.Die` class.  If `max_cache_size` is
     not an integral value.  If `class_name` is not a string.
+
+Notes
+-----
+To make the most out of the boosted column class, do not boost the abstract
+base class `engine.Column`, but a concrete subclass.  Speciffically, any
+overrides of the `get_next_available_slots` method nullify the boost to the 
+method implemented by the returned class.
 """
     if not (isinstance(cls, type) and issubclass(cls, _engine.Column)):
         raise TypeError("Base class must be a column subclass.")
@@ -232,19 +247,61 @@ TypeError
         def get_lambda_slots (cls, scores):
             return _np.flatnonzero(_np.isnan(scores))
 
-        def get_next_available_slots (self):
-            self_type = type(self)
+        def get_available_slots (self):
+            available_slots = getattr(self, '_available_slots', None)
 
-            available_slots = self_type.get_lambda_slots(self._slots)
-            available_slots = available_slots[
-                _np.isin(
-                    available_slots,
-                    self_type._fillable_slots_array,
-                    assume_unique = True
-                )
-            ]
+            if available_slots is None:
+                self_type = type(self)
+
+                available_slots = self_type.get_lambda_slots(self._slots)
+                available_slots = available_slots[
+                    _np.isin(
+                        available_slots,
+                        self_type._fillable_slots_array,
+                        assume_unique = True
+                    )
+                ]
+
+                self._available_slots = available_slots
 
             return available_slots
+
+        def get_next_available_slots (self):
+            available_slots = getattr(self, '_next_available_slots', None)
+
+            if available_slots is None:
+                available_slots = \
+                    super(BoostedColumn, self).get_next_available_slots()
+
+                self._next_available_slots = available_slots
+
+            return available_slots
+
+        def pre_filling_action (self, roll, *args, **kwargs):
+            self._available_slots = None
+            self._next_available_slots = None
+
+            super(BoostedColumn, self).pre_filling_action(
+                roll,
+                *args,
+                **kwargs
+            )
+
+        def fill_slot(self, slot, results):
+            super(BoostedColumn, self).fill_slot(slot, results)
+
+            self._next_available_slots = None
+            self._available_slots = None
+
+        def post_filling_action (self, roll, *args, **kwargs):
+            super(BoostedColumn, self).post_filling_action(
+                roll,
+                *args,
+                **kwargs
+            )
+
+            self._next_available_slots = None
+            self._available_slots = None
 
         def __array__ (self):
             """Returns `self._slots`."""
