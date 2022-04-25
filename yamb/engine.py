@@ -235,12 +235,13 @@ correspond to index values 1, 2, ..., 6 but also that no index is skipped.
     FOUR = 4
     FIVE = 5
     SIX = 6
-    NUMBERS_SUM = 7
+    NUMBERS_SUM = 7 # Sum of fillable number solts
 
     # Sums
     MAX = 8
     MIN = 9
-    SUMS_DIFFERENCE = 10
+    SUMS_DIFFERENCE = 10 # Difference of fillable sum slots multiplied by the
+                         # number of ones
 
     # Collections
     TWO_PAIRS = 11
@@ -248,7 +249,7 @@ correspond to index values 1, 2, ..., 6 but also that no index is skipped.
     FULL_HOUSE = 13
     CARRIAGE = 14
     YAMB = 15
-    COLLECTIONS_SUM = 16
+    COLLECTIONS_SUM = 16 # Sum of fillable collection slots
 
 class Column (object if _sys.version_info.major < 3 else _abc.ABC):
     """Represents a column to fill in the yamb game table.
@@ -1622,7 +1623,8 @@ random_state : Die or callable or number or random.Random or \
 numpy.random.RandomState or numpy.random.Generator or \
 numpy.random.BitGenerator or <module 'random'> or \
 <module 'numpy.random'>, optional
-    Random state of the dice (for rolling results).  Please refer to the
+    Random state of the dice (for rolling results).  If a `Die` instance, it
+    is used as the die for the game; otherwise please refer to the
     documentation for `Die` for more details.
 """
 
