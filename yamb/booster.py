@@ -12,7 +12,19 @@ Requirements:
 
 import sys as _sys
 if (_sys.version_info.major, _sys.version_info.minor) < (3, 2):
-    raise RuntimeError("Minimal required Python version: 3.2.")
+    raise RuntimeError(
+        "Python version is not suitable (found version: {version}). Use " \
+            "python >= 3.2 for boosting support.".format(
+                version = str.join(
+                    '.',
+                    (
+                        str(_sys.version_info.major),
+                        str(_sys.version_info.minor),
+                        str(_sys.version_info.micro)
+                    )
+                )
+            )
+        )
 del _sys
 
 import functools as _functools
@@ -22,9 +34,16 @@ _np = None
 try:
     import numpy as _np
 except ImportError as import_error:
-    raise RuntimeError("NumPy is not available.") from import_error
+    raise ImportError(
+        "Missing optional dependency 'numpy'. Install numpy >= 1.17.0 for " \
+            "boosting support."
+    ) from import_error
 if _np.lib.NumpyVersion(_np.__version__) < _np.lib.NumpyVersion('1.17.0'):
-    raise RuntimeError("Minimal required NumPy version: 1.17.0.")
+    raise ImportError(
+        "Optional dependency 'numpy' is not of a suitable version (found " \
+            "version: {np_version}). Install numpy >= 1.17.0 for boosting " \
+            "support.".format(np_version = _np.__version__)
+    )
 
 import _types
 import engine as _engine
