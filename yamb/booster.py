@@ -247,6 +247,7 @@ TypeError
             return available_slots
 
         def __array__ (self):
+            """Returns `self._slots`."""
             return self._slots
 
     return BoostedColumn
