@@ -12,11 +12,7 @@ back-channel communication amongst the players.
 
 import abc as _abc
 import collections as _collections
-_collections_abc = None
-try:
-    import collections.abc as _collections_abc
-except ImportError:
-    _collections_abc = _collections
+_collections_abc = getattr(_collections, 'abc', _collections)
 import enum as _enum
 import math as _math
 import random as _random
@@ -573,7 +569,7 @@ alter them.
                     return c * r
             return 0
         elif slot in cls.sum_slots:
-            return sum(_prod(c) for c in counts)
+            return sum(map(_prod, counts))
         elif slot == Slot.TWO_PAIRS:
             if counts and counts[0][1] >= 4:
                 return 4 * counts[0][0] + 10

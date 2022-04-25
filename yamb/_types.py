@@ -1,11 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import collections as _collections
-_collcections_abc = None
-try:
-    import collections.abc as _collcections_abc
-except ImportError:
-    _collcections_abc = _collections
+_collections_abc = getattr(_collections, 'abc', _collections)
 import decimal as _decimal
 import fractions as _fractions
 import numbers as _numbers
@@ -18,10 +14,10 @@ try:
 except ImportError:
     pass
 
-Hashable = (_collcections_abc.Hashable, )
-Iterable = (_collcections_abc.Iterable, )
-Sequence = (_collcections_abc.Sequence, )
-Mapping = (_collcections_abc.Mapping, )
+Hashable = (_collections_abc.Hashable, )
+Iterable = (_collections_abc.Iterable, )
+Sequence = (_collections_abc.Sequence, )
+Mapping = (_collections_abc.Mapping, )
 String = [ str, bytes, bytearray, memoryview ]
 if _sys.version_info.major < 3:
     String.insert(0, basestring)
