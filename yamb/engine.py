@@ -1235,21 +1235,35 @@ if required (such as the announced column).
 """
         pass
 
-    def is_full (self):
+    def is_full (self, fillable = False):
         """Checks if the column is full (completely filled).
+
+Parameters
+----------
+fillable : boolean, default = False
+    If ``True``, only the fillable slots are cheked; otherwise all slots are
+    checked.
 
 Returns
 -------
 bool
-    ``True`` if the column is full, ``False`` otherwise.
-"""
-        self_type = type(self)
+    ``True`` if the column is full, ``False`` otherwise.  If `fillable` is
+    ``False``, the method may return ``True`` even if not all slots are
+    filled, but all fillable slots are.
 
-        return \
-            not any(
-                self_type.is_lambda(self._slots[s])
-                    for s in self_type.fillable_slots
-            )
+Raises
+------
+TypeError
+    If `fillable` is not a boolean value.
+"""
+        if self._check_input:
+            if not isinstance(fillable, _types.AnyBoolean):
+                raise TypeError("Fillable flag must be a boolean value.")
+
+        return not len(
+            self.get_available_slots() if fillable
+                else type(self).get_lambda_slots(self._slot)
+        )
 
     def __len__ (self):
         return len(self._slots)
