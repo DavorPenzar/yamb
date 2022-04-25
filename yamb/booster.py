@@ -119,6 +119,9 @@ well as the `_slots` instance variable.  In particular, `cls.lambda_score` is
 set to `nan`, and `_slots` is set to a `numpy.ndarray` of `float`s.  This is
 ensured by also overriding the `_new_empty_scores` method.
 
+Additionally, the resulting class implements a `__array__` method which simply
+returns the instance's `_slots` variable (similar to the `scores` property).
+
 Parameters
 ----------
 cls : type[engine.Column], default = engine.Column
@@ -242,5 +245,8 @@ TypeError
             ]
 
             return available_slots
+
+        def __array__ (self):
+            return self._slots
 
     return BoostedColumn
