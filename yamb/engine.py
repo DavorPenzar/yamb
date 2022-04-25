@@ -1027,7 +1027,12 @@ should return:
 
 In the latter case, each argument should be represented by its intended type. 
 For instance, if the column is announced and `roll` is 1, the method might
-return ``((), {'announced': Slot})``.  By default, this method returns
+return ``((), {'announced': Slot})``.  The method may also return only one of
+the two (e. g. only `args` or only `kwargs`) if the other is
+unexpected/non-required, but in that case make sure the structure is non-empty
+so it would not be considered falsey.  In fact, if the structure is empty,
+that means that no parameter is expected and/or required, therefore the second
+option (to return ``True``) may be employed.  By default, this method returns
 ``None``.
 
 A reuqirement of a pre-filling action means that the action is required if the
@@ -1198,6 +1203,8 @@ the turn), this method should return:
     for the `post_filling_action` method.
 
 In the latter case, each argument should be represented by its intended type.
+Please refer to the documentation for `requires_pre_filling_action` for more
+details.  By default, this method returns ``None``.
 
 A reuqirement of a post-filling action means that the action is required if
 the player chose to fill this column at the end of the turn.  It does not mean
@@ -1506,7 +1513,7 @@ class AnnouncedColumn (Column):
         if roll == 1:
             return ((), { 'announcement': Slot })
 
-        return super(AnnouncedColumn, self).requires_pre_filling_action(roll)
+        return None
 
     def announce (self, slot):
         """Announce a slot that will be filled in this column.
@@ -1566,8 +1573,6 @@ than a single integer.
         self.lock()
 
     def pre_filling_action(self, roll, *args, **kwargs):
-        super(AnnouncedColumn, self).pre_filling_action(roll, *args, **kwargs)
-
         if roll == 1:
             self.announce(
                 args[0] if (len(args) == 1 and not kwargs) \
@@ -1602,8 +1607,6 @@ is_locked : Method that checks if the column is locked
 
     def post_filling_action(self, *args, **kwargs):
         self.suppress()
-
-        super(AnnouncedColumn, self).post_filling_action(*args, **kwargs)
 
     def is_announced (self):
         """Checks if a slot is announced.
