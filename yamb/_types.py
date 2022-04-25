@@ -55,8 +55,8 @@ NumpyBitGenerator = None
 NumpyRandomState = None
 if _np is not None:
     NumpyHashable = ()
-    NumpyIterable = (_np.array, )
-    NumpySequence = (_np.array, )
+    NumpyIterable = (_np.ndarray, )
+    NumpySequence = (_np.ndarray, )
     NumpyMapping = ()
     NumpyString = [ _np.str_, _np.bytes_ ]
     if hasattr(_np, 'unicode_') and _np.unicode_ is not _np.str_:
