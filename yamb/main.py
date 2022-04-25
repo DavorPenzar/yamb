@@ -20,25 +20,30 @@ def main (argv = []):
 
     die = Die()
 
-    column = OrderedColumn('up', check_input = False)
+    n_iter = 10000
 
-    while not column.is_full():
-        column.fill_slot(
-            column.get_next_available_slots()[0],
-            #tuple(_np.sort(die.roll(5)))
-            [ 1, 2, 3, 4, 5 ]
-        )
+    scores = _np.zeros(n_iter, dtype = _np.float32)
+
+    for i in range(n_iter):
+        column = OrderedColumn(OrderedColumn.Order.DOWN, check_input = False)
+
+        while True:
+            available_slots = column.get_next_available_slots()
+            if len(available_slots): 
+                column.fill_slot(available_slots[0], die.roll(5))
+            else:
+                break
         column.update_auto_slots()
 
-    print(column.name)
-    for s in _engine.Slot:
-        if s == _engine.Slot.TOTAL:
-            continue
-        print("{slot}: {score}".format(slot = s.name, score = column[s]))
+        scores[i] = column[_engine.Slot.TOTAL]
 
-    print('')
-
-    print(column.TOTAL)
+    print(f"Mean: {_np.mean(scores)}")
+    print(f"SD:   {_np.std(scores, ddof = 1)}")
+    print(f"Min:  {_np.amin(scores)}")
+    print(f"25 %: {_np.percentile(scores, 25)}")
+    print(f"50 %: {_np.median(scores)}")
+    print(f"75 %: {_np.percentile(scores, 75)}")
+    print(f"Max:  {_np.amax(scores)}")
 
     return 0
 
