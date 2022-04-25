@@ -53,7 +53,10 @@ def boost_die (cls = _engine.Die, class_name = None):
 
 When NumPy back-end is enforced, `cls.sides` is converted to a `numpy.ndarray`
 and `random_state` is set to a `numpy.random.Generator` unless a different
-random state is explicitly provided.
+random state is explicitly provided.  Converting `cls.sides` is not done
+in-place, meaning that the original `cls`' class variable `sides` is remained
+unaltered, but the resulting class' variable `sides` is set to a
+`numpy.ndarray` version of `cls.side`.
 
 Parameters
 ----------
@@ -65,7 +68,7 @@ class_name : string, optional
 
 Returns
 -------
-type
+type[engine.Die]
     The boosted subclass version of `cls`.
 
 Raises
@@ -79,9 +82,12 @@ TypeError
     if not (class_name is None or isinstance(class_name, _types.AnyString)):
         raise TypeError("Class name must be a string.")
 
+    if class_name is not None:
+        class_name = str(class_name)
+
     class BoostedDie (cls):
         if class_name is not None:
-            __name__ = str(class_name)
+            __name__ = class_name
 
         sides = _np.array(cls.sides, dtype = _np.int32)
 
@@ -127,7 +133,7 @@ class_name : string, optional
 
 Returns
 -------
-type
+type[engine.Column]
     The boosted subclass version of `cls`.
 
 Raises
@@ -147,10 +153,12 @@ TypeError
         raise ValueError("Cache size must be greater than or equal to 0.")
 
     max_cache_size = int(max_cache_size)
+    if class_name is not None:
+        class_name = str(class_name)
 
     class BoostedColumn (cls):
         if class_name is not None:
-            __name__ = str(class_name)
+            __name__ = class_name
 
         __doc__ = cls.__doc__
 
@@ -193,6 +201,8 @@ TypeError
         @classmethod
         @_functools.lru_cache(maxsize = max_cache_size)
         def _count_results_tuple (cls, results):
+            """Similar to `_count_results`, but expects a hashable sequence \
+`results` (e. g. a `tuple`) for caching purposes."""
             return super(BoostedColumn, cls)._count_results(results)
 
         @classmethod
