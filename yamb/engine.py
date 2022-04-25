@@ -1272,6 +1272,45 @@ TypeError
                 else type(self).get_lambda_slots(self._slot)
         )
 
+    def to_numpy (self):
+        """Returns the scores aranged into a `numpy.ndarray`.
+
+This method returns a similar structure to the `scores` property, but it is
+ensured that the result is a `numpy.ndarray` via the `numpy.asanyarray`
+function.  If the object returned by the `scores` property is already a
+`numpy.ndarray`, mutating the array returned by this method shall affect the
+column's in-memory object.
+
+Please refer to the documentation for `scores` property and `numpy.asanyarray`
+function for more details.
+
+Returns
+-------
+numpy.ndarray
+    Scores aranged into a `numpy.ndarray`.
+
+Raises
+------
+NotImplementedArray
+    If NumPy back-end is unavailable (if `numpy` cannot be imported).
+
+See Also
+--- ----
+scores : Similar property but does not ensure `numpy.ndarray`
+
+Notes
+-----
+Variable `__array__` is set as an alias for this method.  If you override the
+method, set the alias again to ensure `numpy.array` and similar
+`numpy.ndarray` initialisers invoke this method to construct the array.
+"""
+        if _np is None:
+            raise NotImplementedError("Missing optional dependency 'numpy'.")
+
+        return _np.asanyarray(self._slots)
+
+    __array__ = to_numpy
+
     def __len__ (self):
         return len(self._slots)
 
@@ -1327,6 +1366,18 @@ checked."""
     @property
     def scores (self):
         """The list of scores over slots.
+
+For a slot `s`, ``scores[s]`` is the score currently filled into the slot `s`
+in this column.  The index `s` may be a `Slot` value or its corresponding
+integral value (e. g. `Slot.ONE` is 1).
+
+See Also
+--- ----
+lambda_score : Value that represents an undefined score
+is_lambda_score : Method that checks if a score is undefined
+get_lambda_slots : Method that returns slots with undefined scores from a \
+list of scores
+to_numpy : Similar function but ensures `numpy.ndarray`
 
 Notes
 -----

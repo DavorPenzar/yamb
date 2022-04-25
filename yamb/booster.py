@@ -119,16 +119,19 @@ well as the `_slots` instance variable.  In particular, `cls.lambda_score` is
 set to `nan`, and `_slots` is set to a `numpy.ndarray` of `float`s.  This is
 ensured by also overriding the `_new_empty_scores` method.
 
-Additionally, the resulting class implements a `__array__` method which simply
-returns the instance's `_slots` variable (similar to the `scores` property).
+Additionally, the `to_numpy` method now simply returns the `_slots` instance
+variable (checking if NumPy is available is omitted).  As `__array__` is an
+alias for the method (this is once again set in the boosted class),
+`numpy.ndarray` initialisers such as `numpy.array` and `numpy.asarray` should
+also be optimised by the change.
 
 Finally, by adding instance variables `_available_slots` and
 `_next_available_slots`, which are reset at each call to `pre_filling_action`,
 `fill_slot` and `post_filling_action`, multiple calls to `get_available_slots`
 and `get_next_available_slots` between which no changes were made to the
 column are now sped-up.  This is achieved by saving values returned by
-`get_available_slots` and `get_next_available_slots` methods to the variables
-respectively, and returning the saved values when possible.
+`get_available_slots` and `get_next_available_slots` methods to the two
+variables respectively, and returning the saved values when possible.
 
 Parameters
 ----------
@@ -303,8 +306,9 @@ method implemented by the returned class.
             self._next_available_slots = None
             self._available_slots = None
 
-        def __array__ (self):
-            """Returns `self._slots`."""
+        def to_numpy (self):
             return self._slots
+
+        __array__ = to_numpy
 
     return BoostedColumn
