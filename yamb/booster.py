@@ -33,11 +33,11 @@ import math as _math
 _np = None
 try:
     import numpy as _np
-except ImportError as import_error:
+except ImportError:
     raise ImportError(
         "Missing optional dependency 'numpy'. Install numpy >= 1.17.0 for " \
             "boosting support."
-    ) from import_error
+    )
 if _np.lib.NumpyVersion(_np.__version__) < _np.lib.NumpyVersion('1.17.0'):
     raise ImportError(
         "Optional dependency 'numpy' is not of a suitable version (found " \
