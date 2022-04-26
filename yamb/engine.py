@@ -18,20 +18,6 @@ import math as _math
 import random as _random
 import sys as _sys
 
-_future = None
-_future_utils = None
-try:
-    import future as _future
-    import future.utils as _future_utils
-except ImportError:
-    pass
-
-_six = None
-try:
-    import six as _six
-except ImportError:
-    pass
-
 _np = None
 try:
     import numpy as _np
@@ -40,21 +26,11 @@ except ImportError:
 
 import _types
 
-_iterkeys = None
-_itervalues = None
-_iteritems = None
-if _six is not None:
-    _iterkeys = _six.iterkeys
-    _itervalues = _six.itervalues
-    _iteritems = _six.iteritems
-elif _future_utils is not None:
-    _iterkeys = _future_utils.iterkeys
-    _itervalues = _future_utils.itervalues
-    _iteritems = _future_utils.iteritems
-else:
-    _iterkeys = lambda m: getattr(m, 'iterkeys', m.keys)()
-    _itervalues = lambda m: getattr(m, 'itervalues', m.keys)()
-    _iteritems = lambda m: getattr(m, 'iteritems', m.items)()
+_range = xrange if _sys.version_info.major < 3 else range
+
+_iterkeys = lambda m: getattr(m, 'iterkeys', m.keys)()
+_itervalues = lambda m: getattr(m, 'itervalues', m.keys)()
+_iteritems = lambda m: getattr(m, 'iteritems', m.items)()
 
 _prod = None
 if _sys.version_info.major < 3:
@@ -152,7 +128,7 @@ like this:
                             self._random_state.choice(Die.sides) if n is None \
                                 else list(
                                     self._random_state.choice(Die.sides)
-                                        for _ in range(n)
+                                        for _ in _range(n)
                                 )
                 else:
                     self._roller = \
@@ -283,12 +259,14 @@ or unintentionally cheat.
 
 This class also provides some auxiliary class variables such as:
 
-* `number_slots`: a set of slots `ONE` through `SIX`,
-* `sum_slots`: a set of slots `MAX` and `MIN`,
-* `collection_slots`: a set of collection slots (`TWO_PAIRS` through `YAMB`),
+* `number_slots`: a set of slots `Slot.ONE` through `Slot.SIX`,
+* `sum_slots`: a set of slots `Slot.MAX` and `Slot.MIN`,
+* `collection_slots`: a set of collection slots (`Slot.TWO_PAIRS` through
+    `Slot.YAMB`),
 * `fillable_slots`: a set of all fillable slots (union of the previous three),
-* `auto_slots`: a set of slots calculated from scores of fillable slots,
-* `slots`: a set of all slots (union of the previous).
+* `auto_slots`: a set of slots calculated from scores of fillable slots
+    (complement of the previous),
+* `slots`: a set of all slots (union of the previous two).
 
 The former slots are all instances of the built-in `frozenset` class and are
 intended not to be altered, but only used for checks and to help implementing
@@ -303,22 +281,46 @@ should also be avoided.
 
 The class also implements auxiliary class methods whose names start with an
 uderscore.  These methods are encouraged to be used by a subclass and may even
-be overriden for special optimisations (e. g. to ensure NumPy backend,
+be overriden for special optimisations (e. g. to ensure NumPy back-end,
 argument-result caching etc.).  However, when overriding them, make sure the
 outputs are compatible with the original outputs to prevent breaking the
 intended behaviour.
 
 Instance variables defined and used by the `Column` class are the following:
 
+* `_type`: actual class of the current column (`type`; originally
+    ``self.__class__``; used for referencing the correct class methods in case
+    of overrides and may be altered to redirect class method calls),
 * `_locked`: a flag indicating whether or not the column is locked (`bool`;
     see `lock`, `unlock` and `is_locked` methods for more information)
 * `_name`: name of the column (`str`),
 * `_check_inputs`: a flag indicating whether or not method arguments should be
     checked (`bool`),
-* `_scores`: list of scores per slots (`list` of `int`s and `lambda_score`).
+* `_scores`: list of scores per slots (`list` of `int`s and `lambda_score`),
+* `_available_slots`: list of unfilled fillable slots (``None`` originally;
+    see below for more information),
+* `_next_available_slots`: list of unfilled slots fillable in the next turn
+    (``None`` originally; see below for more information).
 
-Additional to instance properties, any `Slot` name may be used for getting the
-score of the slot like the following: ``column.ONE`` or ``column.TOTAL``.
+The last two instance variables are intended for optimisation of methods
+`get_available_slots` and `get_next_available_slots` respectively.  When a
+method of those two is called, the column should check if the corresponding
+variable is ``None``.  If yes, the list should be generated, saved to the
+corresponding variable and returned; if not, the variable's value should be
+returned immediately (optionally, return a copy to prevent unwanted mutation
+from the outside code).  Both variables are originally set to ``None``, and
+are reset to ``None`` on every call to the `fill_slot` method.  If a
+pre-filling action or a post-filling action changes the availability of any of
+the two lists (e. g. for the announced column, only the announced slot is
+available after the announced up until the end of the turn), set the
+appropriate variable to ``None`` again in the corresponding method
+(`pre_filling_action` or `post_filling_action`).
+
+Additional to instance properties `name`, `check_input` and `score`, any
+`Slot` value's name may be used as a property for getting the score of the
+slot like the following: ``self.ONE`` or ``self.TOTAL``.  Such score retrieval
+is case-sensitive, unlike the subscripting retrieval via the `__getitem__`
+method.
 """
 
     if _sys.version_info.major < 3:
@@ -371,7 +373,7 @@ Returns
 list
     A list of ``len(Slot)`` empty scores (`lambda_score`).
 """
-        return list(cls.lambda_score for _ in range(len(Slot)))
+        return list(cls.lambda_score for _ in _range(len(Slot)))
 
     @classmethod
     def _ensure_roll_index (cls, roll):
@@ -468,7 +470,10 @@ Although `numpy.ndarray` is not a subclass of `collections.abc.Sequence`
 abstract base class, it is considered a sequence by this method and is not
 converted to a `tuple` or a `list`.
 """
-        if not isinstance(results, _types.AnyIterable):
+        if (
+            not isinstance(results, _types.AnyIterable) or
+            isinstance(results, _types.AnyString)
+        ):
             results = (results, )
         if not isinstance(results, _types.AnySequence):
             results = tuple(results)
@@ -493,12 +498,12 @@ converted to a `tuple` or a `list`.
 Parameters
 ----------
 results : sequence[integer]
-    Results of the dice roll.
+    Results of a dice roll.
 
 Returns
 -------
 tuple[integer]
-    Ordered (ascending) unique results of a dice roll.
+    Ordered (ascending) unique results of the dice roll.
 
 tuple[tuple[integer, int]]
     Ordered (descending by the second item) unique counts of results of the
@@ -582,7 +587,7 @@ alter them.
                 return 0
         elif slot == Slot.STRAIGHT:
             n = 0
-            for i in range(1, len(results)):
+            for i in _range(1, len(results)):
                 if results[i] - results[i - 1] == 1:
                     n += 1
                     if n >= 4:
@@ -674,17 +679,20 @@ its values.
     def __new__ (cls, *args, **kwargs):
         instance = super(Column, cls).__new__(cls)
 
+        instance._type = None
         instance._locked = None
         instance._name = None
         instance._check_input = None
         instance._slots = None
+        instance._available_slots = None
+        instance._next_available_slots = None
 
         return instance
 
     def __init__ (self, name = None, check_input = True):
         super(Column, self).__init__()
 
-        self_type = type(self)
+        self._type = self.__class__
 
         if not (name is None or isinstance(name, _types.AnyString)):
             raise TypeError("Column name must be a string value.")
@@ -693,11 +701,14 @@ its values.
 
         self._locked = False
         self._name = str(
-            getattr(self_type, '__name__', 'Column') if name is None
+            getattr(self._type, '__name__', 'Column') if name is None
                 else name
         )
         self._check_input = bool(check_input)
-        self._slots = self_type._new_empty_scores()
+        self._slots = self._type._new_empty_scores()
+
+        self._available_slots = None
+        self._next_available_slots = None
 
     def lock (self):
         """Locks the column.
@@ -723,7 +734,7 @@ column should be lockable/unlockable by setting the `_locked` instance
 variable to ``True``.
 """
         raise TypeError(
-            "{column} cannot be locked.".format(column = type(self))
+            "{column} cannot be locked.".format(column = self._type)
         )
 
     def unlock (self):
@@ -750,7 +761,7 @@ column should be lockable/unlockable by setting the `_locked` instance
 variable to ``False``.
 """
         raise TypeError(
-            "{column} cannot be unlocked.".format(column = type(self))
+            "{column} cannot be unlocked.".format(column = self._type)
         )
 
     def is_locked (self):
@@ -817,19 +828,17 @@ unique results.  However, if method parameters are not checked (recall the
 single integer.  Also, if parameters are not checked, `slot` may not be a
 string.
 """
-        self_type = type(self)
-
         if self._check_input:
-            slot = self_type._ensure_slot(slot)
-            if slot not in self_type.fillable_slots:
+            slot = self._type._ensure_slot(slot)
+            if slot not in self._type.fillable_slots:
                 raise KeyError(
                     "Slot {slot} is auto-filled.".format(slot = slot)
                 )
-            results = self_type._ensure_results_sequence(results)
+            results = self._type._ensure_results_sequence(results)
 
-        results, counts = self_type._count_results(results)
+        results, counts = self._type._count_results(results)
 
-        return self_type._evaluate(slot, results, counts)
+        return self._type._evaluate(slot, results, counts)
 
     def evaluate_all (self, results):
         """Evaluates `results` for all fillable slots.
@@ -863,11 +872,9 @@ unique results.  However, if method parameters are not checked (recall the
 `_check_inputs` instance variable), `results` must be a sequence rather than a
 single integer.
 """
-        self_type = type(self)
-
         if self._check_input:
-            slot = self_type._ensure_slot(slot)
-            if slot not in self_type.fillable_slots:
+            slot = self._type._ensure_slot(slot)
+            if slot not in self._type.fillable_slots:
                 raise KeyError(
                     "Slot {slot} is auto-filled.".format(slot = slot)
                 )
@@ -875,13 +882,13 @@ single integer.
                 raise RuntimeError(
                     "Slot {slot} is unavailable.".format(slot = slot)
                 )
-            results = self_type._ensure_results_sequence(results)
+            results = self._type._ensure_results_sequence(results)
 
-        results, counts = self_type._count_results(results)
+        results, counts = self._type._count_results(results)
 
         for s in Slot:
-            if s in self_type.fillable_slots:
-                yield (s, self_type._evaluate(s, results, counts))
+            if s in self._type.fillable_slots:
+                yield (s, self._type._evaluate(s, results, counts))
 
     def get_available_slots (self):
         """Returns all unfilled fillable slots.
@@ -890,14 +897,21 @@ Returns
 -------
 list[Slot]
     List of fillable slots yet to be filled.
-"""
-        self_type = type(self)
 
-        return list(
-            s
-                for s in self_type.get_lambda_slots(self._slots)
-                    if s in self_type.fillable_slots
-        )
+Notes
+-----
+Do not alter the object returned by this method.  Doing so might break the
+expected behaviour of the column.  Instead, create a copy using
+``copy.copy(slots)`` or ``copy.deepcopy(slots)`` before altering it.
+"""
+        if self._available_slots is None:
+            self._available_slots = list(
+                s
+                    for s in self._type.get_lambda_slots(self._slots)
+                        if s in self._type.fillable_slots
+            )
+
+        return self._available_slots
 
     @_abc.abstractmethod
     def get_next_available_slots (self):
@@ -911,6 +925,10 @@ list[Slot]
 
 Notes
 -----
+Do not alter the object returned by this method.  Doing so might break the
+expected behaviour of the column.  Instead, create a copy using
+``copy.copy(slots)`` or ``copy.deepcopy(slots)`` before altering it.
+
 This is an abstract method.  Override it for the column-specific rules.
 """
         pass
@@ -945,18 +963,15 @@ converting an integer or a string to a `Slot` via ``Slot(slot)`` and
 If method parameters are not checked (recall the `_check_inputs` instance
 variable), ``slot` may not be a string.
 """
-        self_type = type(self)
-
         if self._check_input:
-            slot = self_type._ensure_slot(slot)
-            if slot not in self_type.fillable_slots:
+            slot = self._type._ensure_slot(slot)
+            if slot not in self._type.fillable_slots:
                 raise KeyError(
                     "Slot {slot} is auto-filled.".format(slot = slot)
                 )
 
-        return self_type.is_lambda(self._slots[slot])
+        return self._type.is_lambda(self._slots[slot])
 
-    @_abc.abstractmethod
     def is_slot_next_available (self, slot):
         """Checks if a slot is unfilled but may be filled in the next turn.
 
@@ -986,11 +1001,25 @@ converting an integer or a string to a `Slot` via ``Slot(slot)`` and
 ``Slot[slot.upper()]`` calls respectively.
 
 If method parameters are not checked (recall the `_check_inputs` instance
-variable), ``slot` may not be a string.
+variable), `slot` may not be a string.
 
-This is an abstract method.  Override it for the column-specific rules.
+Although this is not an abstract method, its default implementation may be far
+from optimal.  It is advised to override this method for the column-specific
+rules, because the current implementation actually returns
+``slot in self.get_next_available_slots()``. Such implementation requires the
+construction of a complete collection returned by the
+`get_next_available_slots` method and then checks if `slot` is in it or not,
+but for many purposes this is a great overload of work (and even memory) which
+may be avoided through intelligent implementation of column-specific logic.
 """
-        pass
+        if self._check_input:
+            slot = self._type._ensure_slot(slot)
+            if slot not in self._type.fillable_slots:
+                raise KeyError(
+                    "Slot {slot} is auto-filled.".format(slot = slot)
+                )
+
+        return slot in self.get_next_available_slots()
 
     def requires_pre_filling_action (self, roll):
         """Checks if a pre-filling action is required for the column.
@@ -1109,9 +1138,8 @@ variable), ``slot` may not be a string and `results` must be a sequence rather
 than a single integer.
 """
         if self._check_input:
-            self_type = type(self)
-            slot = self_type._ensure_slot(slot)
-            if slot not in self_type.fillable_slots:
+            slot = self._type._ensure_slot(slot)
+            if slot not in self._type.fillable_slots:
                 raise KeyError(
                     "Slot {slot} is auto-filled.".format(slot = slot)
                 )
@@ -1122,31 +1150,32 @@ than a single integer.
 
         self._slots[slot] = self.evaluate(slot, results)
 
+        self._available_slots = None
+        self._next_available_slots = None
+
     def update_auto_slots (self):
         """Updates any auto-filled slots that may be filled (if all required \
 slots are filled)."""
-        self_type = type(self)
-
         if (
-            self_type.is_lambda(self._slots[Slot.NUMBERS_SUM]) and
+            self._type.is_lambda(self._slots[Slot.NUMBERS_SUM]) and
             not any(
-                self_type.is_lambda(self._slots[s])
-                    for s in self_type.number_slots
+                self._type.is_lambda(self._slots[s])
+                    for s in self._type.number_slots
             )
         ):
             numbers_sum = sum(
-                self._slots[s] for s in self_type.number_slots
+                self._slots[s] for s in self._type.number_slots
             )
             if numbers_sum >= 60:
                 numbers_sum += 30
             self._slots[Slot.NUMBERS_SUM] = numbers_sum
         if (
-            self_type.is_lambda(self._slots[Slot.SUMS_DIFFERENCE]) and
+            self._type.is_lambda(self._slots[Slot.SUMS_DIFFERENCE]) and
             not (
-                self_type.is_lambda(self._slots[Slot.ONE]) or
+                self._type.is_lambda(self._slots[Slot.ONE]) or
                 any(
-                    self_type.is_lambda(self._slots[s])
-                        for s in self_type.sum_slots
+                    self._type.is_lambda(self._slots[s])
+                        for s in self._type.sum_slots
                 )
             )
         ):
@@ -1154,20 +1183,20 @@ slots are filled)."""
                 self._slots[Slot.ONE] * \
                     (self._slots[Slot.MAX] - self._slots[Slot.MIN])
         if (
-            self_type.is_lambda(self._slots[Slot.COLLECTIONS_SUM]) and
+            self._type.is_lambda(self._slots[Slot.COLLECTIONS_SUM]) and
             not any(
-                self_type.is_lambda(self._slots[s])
-                    for s in self_type.collection_slots
+                self._type.is_lambda(self._slots[s])
+                    for s in self._type.collection_slots
             )
         ):
             self._slots[Slot.COLLECTIONS_SUM] = sum(
-                self._slots[s] for s in self_type.collection_slots
+                self._slots[s] for s in self._type.collection_slots
             )
         if (
-            self_type.is_lambda(self._slots[Slot.TOTAL]) and
+            self._type.is_lambda(self._slots[Slot.TOTAL]) and
             not any(
-                self_type.is_lambda(self._slots[s])
-                    for s in self_type.fillable_slots
+                self._type.is_lambda(self._slots[s])
+                    for s in self._type.fillable_slots
             )
         ):
             self._slots[Slot.TOTAL] = \
@@ -1267,9 +1296,9 @@ TypeError
             if not isinstance(fillable, _types.AnyBoolean):
                 raise TypeError("Fillable flag must be a boolean value.")
 
-        return not len(
-            self.get_available_slots() if fillable
-                else type(self).get_lambda_slots(self._slot)
+        return not any(
+            self._type.is_lambda(self._slot[s]) \
+                for s in (self._type.fillable_slots if fillable else Slot)
         )
 
     def to_numpy (self):
@@ -1297,19 +1326,43 @@ NotImplementedArray
 See Also
 --- ----
 scores : Similar property but does not ensure `numpy.ndarray`
+__array__ : Similar method but without a dependency availability check
 
 Notes
 -----
-Variable `__array__` is set as an alias for this method.  If you override the
-method, set the alias again to ensure `numpy.array` and similar
-`numpy.ndarray` initialisers invoke this method to construct the array.
+Instead of overriding this method, consider overriding the `__array__` method
+instead.  The object returned by the `__array__` method shall be returned by
+this method as well, but a cautionary dependency check shall be done first.
 """
         if _np is None:
             raise NotImplementedError("Missing optional dependency 'numpy'.")
 
-        return _np.asanyarray(self._slots)
+        return self.__array__()
 
-    __array__ = to_numpy
+    def __array__ (self):
+        """Returns the scores aranged into a `numpy.ndarray`.
+
+Please refer to the documentation for `to_numpy` method for more details.
+
+Returns
+-------
+numpy.ndarray
+    Scores aranged into a `numpy.ndarray`.
+
+See Also
+--- ----
+to_numpy : Similar method but with a dependency availability check
+
+Notes
+-----
+Unlike the `to_numpy` method, this method assumes that NumPy back-end is
+available (that `numpy` is successfully imported).  This is because the method
+is not intended to be called directly in any library or user code (except for
+the `to_numpy` method), but only implicitly via the `numpy.array` and similar
+`numpy.ndarray` initialisers.  If NumPy is unavailable, the method's behaviour
+is undefined and not guaranteed.
+"""
+        return _np.asanyarray(self._slots)
 
     def __len__ (self):
         return len(self._slots)
@@ -1342,7 +1395,7 @@ variable), ``slot` may not be a string and `results` must be a sequence rather
 than a single integer.
 """
         if self._check_input:
-            key = type(self)._ensure_slot(key)
+            key = self._type._ensure_slot(key)
 
         return self._slots[key]
 
@@ -1384,7 +1437,8 @@ Notes
 This property returns the underlying in-memory object for storing the state of
 scores of the column.  At worst, manually mutating the returned list might
 cause unexpected behaviour of the column, and, at the very least, is a method
-of cheating when done during a game.
+of cheating when done during a game.  Instead, create a copy using
+``copy.copy(scores)`` or ``copy.deepcopy(scores)`` before altering it.
 """
         return self._slots
 
@@ -1431,60 +1485,58 @@ considered fillable in any next round).
             check_input = check_input
         )
 
-        self_type = type(self)
-
-        if isinstance(order, self_type.Order):
+        if isinstance(order, self._type.Order):
             self._order = order
         elif isinstance(order, _types.AnyInteger):
-            self._order = self_type.Order(order)
+            self._order = self._type.Order(order)
         else:
             if not isinstance(order, _types.AnyString):
                 raise TypeError(
                     "Order must be a string or an order value."
                 )
-            self._order = self_type.Order[order.upper()]
+            self._order = self._type.Order[order.upper()]
 
         if name is None:
             self._name = "{type_name}_{order}".format(
-                type_name = getattr(self_type, '__name__', 'OrderedColumn'),
+                type_name = getattr(self._type, '__name__', 'OrderedColumn'),
                 order = self._order.name
             )
 
     def get_next_available_slots(self):
-        self_type = type(self)
+        if self._next_available_slots is None:
+            available_slots = self.get_available_slots()
+            end_slots = set()
 
-        available_slots = self.get_available_slots()
-        end_slots = set()
+            if len(available_slots):
+                if self._order & self._type.Order.DOWN:
+                    end_slots |= { available_slots[0] }
+                if self._order & self._type.Order.UP:
+                    end_slots |= { available_slots[-1] }
 
-        if len(available_slots):
-            if self._order & self_type.Order.DOWN:
-                end_slots |= { available_slots[0] }
-            if self._order & self_type.Order.UP:
-                end_slots |= { available_slots[-1] }
+            self._next_available_slots = list(sorted(end_slots))
 
-        return list(sorted(end_slots))
+        return self._next_available_slots
 
     def is_slot_next_available(self, slot):
-        self_type = type(self)
-
         if self._check_input:
-            slot = self_type._ensure_slot(slot)
-            if slot not in self_type.fillable_slots:
+            slot = self._type._ensure_slot(slot)
+            if slot not in self._type.fillable_slots:
                 raise KeyError(
                     "Slot {slot} is auto-filled.".format(slot = slot)
                 )
 
-        available_slots = self.get_available_slots()
+        if self._available_slots is None:
+            self.get_available_slots()
 
-        if len(available_slots):
+        if len(self._available_slots):
             if (
-                (self._order & self_type.Order.DOWN) and
-                slot == available_slots[0]
+                (self._order & self._type.Order.DOWN) and
+                slot == self._available_slots[0]
             ):
                 return True
             if (
-                (self._order & self_type.Order.UP) and
-                slot == available_slots[-1]
+                (self._order & self._type.Order.UP) and
+                slot == self._available_slots[-1]
             ):
                 return True
 
@@ -1539,16 +1591,17 @@ class AnnouncedColumn (Column):
         self._locked = False
 
     def get_next_available_slots(self):
-        return \
-            self.get_available_slots() if self._announcement is None \
-                else [ self._announcement ]
+        if self._next_available_slots is None:
+            self._next_available_slots = \
+                self.get_available_slots() if self._announcement is None \
+                    else [ self._announcement ]
+
+        return self._next_available_slots
 
     def is_slot_next_available(self, slot):
-        self_type = type(self)
-
         if self._check_input:
-            slot = self_type._ensure_slot(slot)
-            if slot not in self_type.fillable_slots:
+            slot = self._type._ensure_slot(slot)
+            if slot not in self._type.fillable_slots:
                 raise KeyError(
                     "Slot {slot} is auto-filled.".format(slot = slot)
                 )
@@ -1559,7 +1612,7 @@ class AnnouncedColumn (Column):
 
     def requires_pre_filling_action(self, roll):
         if self._check_input:
-            roll = type(self)._ensure_roll_index(roll)
+            roll = self._type._ensure_roll_index(roll)
 
         if roll == 1:
             return ((), { 'announcement': Slot })
@@ -1604,14 +1657,12 @@ If method parameters are not checked (recall the `_check_inputs` instance
 variable), ``slot` may not be a string and `results` must be a sequence rather
 than a single integer.
 """
-        self_type = type(self)
-
         if self._announcement is not None:
             raise RuntimeError("A slot is already announced.")
 
         if self._check_input:
-            slot = self_type._ensure_slot(slot)
-            if slot not in self_type.fillable_slots:
+            slot = self._type._ensure_slot(slot)
+            if slot not in self._type.fillable_slots:
                 raise KeyError(
                     "Slot {slot} is auto-filled.".format(slot = slot)
                 )
@@ -1621,6 +1672,10 @@ than a single integer.
                 )
 
         self._announcement = slot
+
+        self._next_available_slots = None
+        self._available_slots = None
+
         self.lock()
 
     def pre_filling_action(self, roll, *args, **kwargs):
@@ -1654,6 +1709,10 @@ is_locked : Method that checks if the column is locked
             raise RuntimeError("No slot is announced yet.")
 
         self._announcement = None
+
+        self._available_slots = None
+        self._next_available_slots = None
+
         self.unlock()
 
     def post_filling_action(self, *args, **kwargs):

@@ -107,31 +107,24 @@ TypeError
 
 def boost_column (
     cls = _engine.Column,
-    max_cache_size = 32,
+    max_cache_size = 0x20,
     class_name = None
 ):
     """Boosts a column class by enforcing using the NumPy back-end and \
-caching intermediate results-score evaluations.
+caching intermediate evaluations.
 
 When NumPy back-end is enforced, this affects the `cls.lambda_score` class
-variable and connected methods (e. g. `is_lambda` and `get_lambda_slots`), as
-well as the `_slots` instance variable.  In particular, `cls.lambda_score` is
-set to `nan`, and `_slots` is set to a `numpy.ndarray` of `float`s.  This is
-ensured by also overriding the `_new_empty_scores` method.
+variable and connected methods (`is_lambda` and `get_lambda_slots`), as well
+as the `_slots` instance variable.  In particular, `cls.lambda_score` is set
+to `nan`, and `_slots` is set to a `numpy.ndarray` of `float`s (this is
+achieved by overriding the `_new_empty_scores` method).  Also, the `is_lambda`
+method is implemented with the `numpy.isnan` universal function
+(`numpy.ufunc`), therefore multiple scores may be checked at once by passing
+an array-like input.
 
-Additionally, the `to_numpy` method now simply returns the `_slots` instance
-variable (checking if NumPy is available is omitted).  As `__array__` is an
-alias for the method (this is once again set in the boosted class),
-`numpy.ndarray` initialisers such as `numpy.array` and `numpy.asarray` should
-also be optimised by the change.
-
-Finally, by adding instance variables `_available_slots` and
-`_next_available_slots`, which are reset at each call to `pre_filling_action`,
-`fill_slot` and `post_filling_action`, multiple calls to `get_available_slots`
-and `get_next_available_slots` between which no changes were made to the
-column are now sped-up.  This is achieved by saving values returned by
-`get_available_slots` and `get_next_available_slots` methods to the two
-variables respectively, and returning the saved values when possible.
+Additionally, the `__array__` method now simply returns the `_slots` instance
+variable, and checking for `numpy` dependency is omitted from the `to_numpy`
+method.
 
 Parameters
 ----------
@@ -139,8 +132,8 @@ cls : type[engine.Column], default = engine.Column
     Class to boost.
 
 max_cache_size : integer, default = 32
-    Maximum cache size to provide to `functools.lru_cache` decorator for
-    overriding the `cls._count_results` and `cls._evaluate` class methods.
+    Maximum cache size to provide to `functools.lru_cache` decorator.  See
+    Notes for more details.
 
 class_name : string, optional
     Name to set as the `__name__` property of the resulting class.
@@ -158,6 +151,21 @@ TypeError
 
 Notes
 -----
+The `functools.lru_cache` decorator is applied to the following class methods:
+
+* `_ensure_roll_index`,
+* `_ensure_slot`,
+* `_count_results` (actually, an auxiliary method is implemented which behaves
+    the same but expects hashable arguments),
+* `_evaluate`.
+
+At most ``4 * max_cache_size`` intermediate argument-result pairs are stored
+at any given moment by the class through these four methods.  Total memory
+consumption depends on the size of arguments and results, but the former two
+methods should expect integers, and maybe very short strings, while the latter
+two should also expect quite small structures of integers in a standard game
+with 5 dice.
+
 To make the most out of the boosted column class, do not boost the abstract
 base class `engine.Column`, but a concrete subclass.  Speciffically, any
 overrides of the `get_next_available_slots` method nullify the boost to the 
@@ -221,6 +229,16 @@ method implemented by the returned class.
 
         @classmethod
         @_functools.lru_cache(maxsize = max_cache_size)
+        def _ensure_roll_index (cls, roll):
+            return super(BoostedColumn, cls)._ensure_roll_index(roll)
+
+        @classmethod
+        @_functools.lru_cache(maxsize = max_cache_size)
+        def _ensure_slot (cls, slot):
+            return super(BoostedColumn, cls)._ensure_slot(slot)
+
+        @classmethod
+        @_functools.lru_cache(maxsize = max_cache_size)
         def _count_results_tuple (cls, results):
             """Similar to `_count_results`, but expects a hashable sequence \
 `results` (e. g. a `tuple`) for caching purposes."""
@@ -244,71 +262,32 @@ method implemented by the returned class.
 
         @classmethod
         def is_lambda (cls, score):
-            return _math.isnan(score)
+            #return _math.isnan(score)
+            return _np.isnan(score) # <- allow checking multiple scores at once
 
         @classmethod
         def get_lambda_slots (cls, scores):
-            return _np.flatnonzero(_np.isnan(scores))
+            return _np.flatnonzero(cls.is_lambda(scores))
 
         def get_available_slots (self):
-            available_slots = getattr(self, '_available_slots', None)
-
-            if available_slots is None:
-                self_type = type(self)
-
-                available_slots = self_type.get_lambda_slots(self._slots)
+            if self._available_slots is None:
+                available_slots = self._type.get_lambda_slots(self._slots)
                 available_slots = available_slots[
                     _np.isin(
                         available_slots,
-                        self_type._fillable_slots_array,
+                        self._type._fillable_slots_array,
                         assume_unique = True
                     )
                 ]
 
                 self._available_slots = available_slots
 
-            return available_slots
-
-        def get_next_available_slots (self):
-            available_slots = getattr(self, '_next_available_slots', None)
-
-            if available_slots is None:
-                available_slots = \
-                    super(BoostedColumn, self).get_next_available_slots()
-
-                self._next_available_slots = available_slots
-
-            return available_slots
-
-        def pre_filling_action (self, roll, *args, **kwargs):
-            self._available_slots = None
-            self._next_available_slots = None
-
-            super(BoostedColumn, self).pre_filling_action(
-                roll,
-                *args,
-                **kwargs
-            )
-
-        def fill_slot(self, slot, results):
-            super(BoostedColumn, self).fill_slot(slot, results)
-
-            self._next_available_slots = None
-            self._available_slots = None
-
-        def post_filling_action (self, roll, *args, **kwargs):
-            super(BoostedColumn, self).post_filling_action(
-                roll,
-                *args,
-                **kwargs
-            )
-
-            self._next_available_slots = None
-            self._available_slots = None
+            return self._available_slots
 
         def to_numpy (self):
-            return self._slots
+            return self.__array__()
 
-        __array__ = to_numpy
+        def __array__ (self):
+            return self._slots
 
     return BoostedColumn
