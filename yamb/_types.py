@@ -26,16 +26,12 @@ String = tuple(String)
 Number = (_numbers.Number, )
 Complex = (_numbers.Complex, complex)
 Real = (_numbers.Real, )
-Rational = (_numbers.Rational, _decimal.Decimal, _fractions.Fraction)
+Rational = (_numbers.Rational, _fractions.Fraction, _decimal.Decimal)
 Floating = (float, )
 Integer = (_numbers.Integral, int)
 Boolean = (bool, )
 RandomState = [ _random.Random ]
-if (
-    hasattr(_random, 'SystemRandom') and
-    _random.SystemRandom is not None and
-    isinstance(_random.SystemRandom, type)
-):
+if (hasattr(_random, 'SystemRandom') and _random.SystemRandom is not None):
     RandomState.append(_random.SystemRandom)
 RandomState = tuple(RandomState)
 
@@ -59,7 +55,10 @@ if _np is not None:
     NumpySequence = (_np.ndarray, )
     NumpyMapping = ()
     NumpyString = [ _np.str_, _np.bytes_ ]
-    if hasattr(_np, 'unicode_') and _np.unicode_ is not _np.str_:
+    if (
+        hasattr(_np, 'unicode_') and
+        not (_np.unicode is None or _np.unicode_ is _np.str_)
+    ):
         NumpyString.insert(1, _np.unicode_)
     NumpyString = tuple(NumpyString)
     NumpyNumber = (_np.number, )
@@ -69,12 +68,14 @@ if _np is not None:
     NumpyFloating = (_np.floating, )
     NumpyInteger = (_np.integer, )
     NumpyBoolean = (_np.bool_, )
-    NumpyRandomState = list()
     if (
         hasattr(_np.random, 'BitGenerator') and
         _np.random.BitGenerator is not None
     ):
         NumpyBitGenerator = (_np.random.BitGenerator, )
+    else:
+        NumpyBitGenerator = ()
+    NumpyRandomState = list()
     if (
         hasattr(_np.random, 'RandomState') and
         _np.random.RandomState is not None

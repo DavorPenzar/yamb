@@ -92,20 +92,26 @@ TypeError
         __doc__ = cls.__doc__
 
         sides = _np.array(cls.sides, dtype = _np.int32)
+        sides.flags.writeable = False
 
         boosted = True
 
-        def __init__ (self, random_state = None):
+        def __init__ (self, random_state = None, **kwargs):
             if random_state is None:
                 super(BoostedDie, self).__init__(
-                    random_state = _np.random.default_rng()
+                    random_state = _np.random.default_rng(),
+                    **kwargs
                 )
             elif isinstance(random_state, _types.AnyNumber):
                 super(BoostedDie, self).__init__(
-                    random_state = _np.random.default_rng(random_state)
+                    random_state = _np.random.default_rng(random_state),
+                    **kwargs
                 )
             else:
-                super(BoostedDie, self).__init__(random_state = random_state)
+                super(BoostedDie, self).__init__(
+                    random_state = random_state,
+                    **kwargs
+                )
 
     return BoostedDie
 
@@ -221,6 +227,13 @@ method implemented by the returned class.
             list(sorted(cls.slots)),
             dtype = _np.int32
         )
+
+        _number_slots_array.flags.writeable = False
+        _sum_slots_array.flags.writeable = False
+        _collection_slots_array.flags.writeable = False
+        _fillable_slots_array.flags.writeable = False
+        _auto_slots_array.flags.writeable = False
+        _slots_array.flags.writeable = False
 
         lambda_score = float('nan')
 

@@ -86,7 +86,10 @@ like this:
     def __init__ (self, random_state = None):
         super(Die, self).__init__()
 
-        if isinstance(random_state, type):
+        if (
+            isinstance(random_state, type) and
+            issubclass(random_state, _types.AnyRandomState)
+        ):
             random_state = random_state()
 
         self._type = self.__class__
@@ -104,7 +107,7 @@ like this:
             isinstance(random_state, _types.AnyRandomState)
         ):
             self._random_state = random_state
-        elif not (_np is None or _types.NumpyBitGenerator is None):
+        elif _np is not None and _types.NumpyBitGenerator:
             self._random_state = _np.random.default_rng(random_state)
         elif (
             callable(random_state) or
