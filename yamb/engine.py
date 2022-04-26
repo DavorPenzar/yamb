@@ -193,7 +193,7 @@ is returned.
 
 class FiniteDie (Die):
     def __new__ (cls, *args, **kwargs):
-        instance = super(FiniteDie, cls).__new__()
+        instance = super(FiniteDie, cls).__new__(cls)
 
         instance._size = None
         instance._results = None
