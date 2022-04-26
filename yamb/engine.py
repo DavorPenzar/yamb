@@ -77,6 +77,7 @@ like this:
     def __new__ (cls, *args, **kwargs):
         instance = super(Die, cls).__new__(cls)
 
+        instance._type = None
         instance._random_state = None
         instance._roller = None
 
@@ -87,6 +88,8 @@ like this:
 
         if isinstance(random_state, type):
             random_state = random_state()
+
+        self._type = self.__class__
 
         if random_state is None:
             self._random_state = _random.Random()
@@ -124,20 +127,22 @@ like this:
                 if _sys.version_info.major < 3:
                     self._roller = \
                         lambda n: \
-                            self._random_state.choice(Die.sides) if n is None \
-                                else list(
-                                    self._random_state.choice(Die.sides)
-                                        for _ in _range(n)
-                                )
+                            self._random_state.choice(self._type.sides) \
+                                if n is None \
+                                    else list(
+                                        self._random_state.choice(
+                                            self._type.sides
+                                        ) for _ in _range(n)
+                                    )
                 else:
                     self._roller = \
                         lambda n: \
-                            self._random_state.choice(Die.sides) if n is None \
-                                else self._random_state.choices(
-                                    Die.sides,
-                                    k = n,
-                                    replace = True
-                                )
+                            self._random_state.choice(self._type.sides) \
+                                if n is None \
+                                    else self._random_state.choices(
+                                        self._type.sides,
+                                        k = n
+                                    )
             elif (
                 (_np is not None and self._random_state is _np.random) or
                 (
@@ -146,7 +151,12 @@ like this:
                 )
             ):
                 self._roller = \
-                    lambda n: self._random_state.choice(Die.sides, size = n)
+                    lambda n: \
+                        self._random_state.choice(
+                            self._type.sides,
+                            size = n,
+                            replace = True
+                        )
 
     def roll (self, n = None):
         """Roll the die.
@@ -180,6 +190,45 @@ is returned.
     def random_state (self):
         """Random state of the die."""
         return self._random_state
+
+class FiniteDie (Die):
+    def __new__ (cls, *args, **kwargs):
+        instance = super(FiniteDie, cls).__new__()
+
+        instance._size = None
+        instance._results = None
+        instance._index = None
+
+        return instance
+
+    def __init__ (self, size = 780, random_state = None):
+        super(FiniteDie, self).__init__(random_state)
+
+        if not isinstance(size, _types.AnyInteger):
+            raise TypeError("Size must be an integral value.")
+        if size < 0:
+            raise ValueError("Size must be greater than or equal to 0.")
+
+        self._size = int(size)
+        self._results = self._roller(self._size)
+        self._index = 0
+
+    def roll (self, n = None):
+        result = None
+
+        if n is None:
+            result = self._results[self._index]
+            self._index += 1
+        else:
+            new_index = self._index + n
+            result = self._results[self._index:new_index]
+            self._index = new_index
+
+        return result
+
+    @property
+    def size (self):
+        return self._size
 
 @_enum.unique
 class Slot (_enum.IntEnum):
@@ -1455,8 +1504,8 @@ order : OrderedColumn.Order or integer or { "down", "mixed", "up" }
 
     @_enum.unique
     class Order (
-        _enum.IntFlag \
-            if (_sys.version_info.major, _sys.version_info.minor) >= (3, 6) \
+        _enum.IntFlag
+            if (_sys.version_info.major, _sys.version_info.minor) >= (3, 6)
                 else _enum.IntEnum
     ):
         """Represents the order of filling an ordered column.
@@ -1502,22 +1551,22 @@ considered fillable in any next round).
                 order = self._order.name
             )
 
-    def get_next_available_slots(self):
+    def get_next_available_slots (self):
         if self._next_available_slots is None:
             available_slots = self.get_available_slots()
             end_slots = set()
 
             if len(available_slots):
                 if self._order & self._type.Order.DOWN:
-                    end_slots |= { available_slots[0] }
+                    end_slots.add(available_slots[0])
                 if self._order & self._type.Order.UP:
-                    end_slots |= { available_slots[-1] }
+                    end_slots.add(available_slots[-1])
 
             self._next_available_slots = list(sorted(end_slots))
 
         return self._next_available_slots
 
-    def is_slot_next_available(self, slot):
+    def is_slot_next_available (self, slot):
         if self._check_input:
             slot = self._type._ensure_slot(slot)
             if slot not in self._type.fillable_slots:
@@ -1565,7 +1614,7 @@ order)."""
     def get_next_available_slots (self):
         return self.get_available_slots()
 
-    def is_slot_next_available(self, slot):
+    def is_slot_next_available (self, slot):
         return self.is_slot_available(slot)
 
 class AnnouncedColumn (Column):
@@ -1590,7 +1639,7 @@ class AnnouncedColumn (Column):
     def unlock (self):
         self._locked = False
 
-    def get_next_available_slots(self):
+    def get_next_available_slots (self):
         if self._next_available_slots is None:
             self._next_available_slots = \
                 self.get_available_slots() if self._announcement is None \
@@ -1598,7 +1647,7 @@ class AnnouncedColumn (Column):
 
         return self._next_available_slots
 
-    def is_slot_next_available(self, slot):
+    def is_slot_next_available (self, slot):
         if self._check_input:
             slot = self._type._ensure_slot(slot)
             if slot not in self._type.fillable_slots:
@@ -1610,7 +1659,7 @@ class AnnouncedColumn (Column):
             self.is_slot_available(slot) if self._announcement is None \
                 else (slot == self._announcement)
 
-    def requires_pre_filling_action(self, roll):
+    def requires_pre_filling_action (self, roll):
         if self._check_input:
             roll = self._type._ensure_roll_index(roll)
 
@@ -1678,14 +1727,14 @@ than a single integer.
 
         self.lock()
 
-    def pre_filling_action(self, roll, *args, **kwargs):
+    def pre_filling_action (self, roll, *args, **kwargs):
         if roll == 1:
             self.announce(
                 args[0] if (len(args) == 1 and not kwargs) \
                     else kwargs['announcement']
             )
 
-    def requires_post_filling_action(self):
+    def requires_post_filling_action (self):
         return True
 
     def suppress (self):
@@ -1715,7 +1764,7 @@ is_locked : Method that checks if the column is locked
 
         self.unlock()
 
-    def post_filling_action(self, *args, **kwargs):
+    def post_filling_action (self, *args, **kwargs):
         self.suppress()
 
     def is_announced (self):

@@ -89,9 +89,13 @@ TypeError
         if class_name is not None:
             __name__ = class_name
 
+        __doc__ = cls.__doc__
+
         sides = _np.array(cls.sides, dtype = _np.int32)
 
-        def __init__(self, random_state = None):
+        boosted = True
+
+        def __init__ (self, random_state = None):
             if random_state is None:
                 super(BoostedDie, self).__init__(
                     random_state = _np.random.default_rng()
@@ -191,6 +195,8 @@ method implemented by the returned class.
 
         __doc__ = cls.__doc__
 
+        boosted = True
+
         _number_slots_array = _np.array(
             list(sorted(cls.number_slots)),
             dtype = _np.int32
@@ -219,8 +225,7 @@ method implemented by the returned class.
         lambda_score = float('nan')
 
         @classmethod
-        def _new_empty_scores(cls):
-            cls._ensure_roll_index
+        def _new_empty_scores (cls):
             return _np.full(
                 len(_engine.Slot),
                 cls.lambda_score,
