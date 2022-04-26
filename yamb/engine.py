@@ -50,8 +50,7 @@ Parameters
 ----------
 random_state : Die or callable or number or random.Random or \
 numpy.random.RandomState or numpy.random.Generator or \
-numpy.random.BitGenerator or <module 'random'> or \
-<module 'numpy.random'>, optional
+numpy.random.BitGenerator or module[random] or module[numpy.random], optional
     Random state of the die (for rolling results).  If callable, it should
     support a single parameter `n` and return a sinlge integer from range
     [1..6] if `n` is ``None`` or a sequence of length `n` of such numbers if
@@ -136,7 +135,8 @@ like this:
                             self._random_state.choice(Die.sides) if n is None \
                                 else self._random_state.choices(
                                     Die.sides,
-                                    k = n
+                                    k = n,
+                                    replace = True
                                 )
             elif (
                 (_np is not None and self._random_state is _np.random) or
@@ -1744,8 +1744,7 @@ Parameters
 ----------
 random_state : Die or callable or number or random.Random or \
 numpy.random.RandomState or numpy.random.Generator or \
-numpy.random.BitGenerator or <module 'random'> or \
-<module 'numpy.random'>, optional
+numpy.random.BitGenerator or module[random] or module[numpy.random], optional
     Random state of the dice (for rolling results).  If a `Die` instance, it
     is used as the die for the game; otherwise please refer to the
     documentation for `Die` for more details.
