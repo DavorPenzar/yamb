@@ -174,14 +174,9 @@ The `functools.lru_cache` decorator is applied to the following class methods:
 At most ``4 * max_cache_size`` intermediate argument-result pairs are stored
 at any given moment by the class through these four methods.  Total memory
 consumption depends on the size of arguments and results, but the former two
-methods should expect integers, and maybe very short strings, while the latter
-two should also expect quite small structures of integers in a standard game
-with 5 dice.
-
-To make the most out of the boosted column class, do not boost the abstract
-base class `engine.Column`, but a concrete subclass.  Speciffically, any
-overrides of the `get_next_available_slots` method nullify the boost to the 
-method implemented by the returned class.
+methods should expect integers and/or maybe short strings, while the latter
+two should also expect quite small structures (flat or composite sequences) of
+integers in a standard game with 5 dice.
 """
     if not (isinstance(cls, type) and issubclass(cls, _engine.Column)):
         raise TypeError("Base class must be a column subclass.")
@@ -259,14 +254,14 @@ method implemented by the returned class.
 
         @classmethod
         @_functools.lru_cache(maxsize = max_cache_size)
-        def _count_results_tuple (cls, results):
+        def _count_hashable_results (cls, results):
             """Similar to `_count_results`, but expects a hashable sequence \
 `results` (e. g. a `tuple`) for caching purposes."""
             return super(BoostedColumn, cls)._count_results(results)
 
         @classmethod
         def _count_results (cls, results):
-            return cls._count_results_tuple(
+            return cls._count_hashable_results(
                 results if isinstance (results, _types.AnyHashable)
                     else tuple(results)
             )
