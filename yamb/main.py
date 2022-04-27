@@ -12,15 +12,18 @@ import engine as _engine
 import booster as _booster
 
 def main (argv = []):
-    Die = _booster.boost_die(_engine.Die, class_name = 'BoostedDie')
+    Die = _booster.boost_die(
+        _engine.FiniteDie,
+        class_name = 'BoostedFiniteDie'
+    )
     OrderedColumn = _booster.boost_column(
         _engine.OrderedColumn,
         class_name = 'BoostedOrderedColumn'
     )
 
-    die = Die()
-
     n_iter = 10000
+
+    die = Die(size = n_iter * len(OrderedColumn.fillable_slots) * 5)
 
     scores = _np.zeros(n_iter, dtype = _np.float32)
 

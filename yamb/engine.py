@@ -10,6 +10,24 @@ counter announced, are impossible to implement without implementing a custom
 back-channel communication amongst the players.
 """
 
+# NOTE. Many methods in `Column` class and its subclasses could have been
+# implemented using `lambda`, `filter`, `map` and `functools.partial` objects
+# which would represent a noticeable optimisation if the underlying iterables
+# were much longer.  However, due to the fact that all iterables involved have
+# 17 items at the most, such solutions were sometimes even slower than custom
+# `for`-loops (actual or inline `generator`s), or represented a negligible
+# micro-optimisations.  If the code seems slow, consider:
+#
+# * skipping input checks in `Column` instances (setting `check_input` to
+#     ``False`` in the initialiser),
+# * using the `FiniteDie` subclass instead of the regular `Die` class for
+#     dice,
+# * using the NumPy back-end (e. g. setting a NumPy (pseudo-)random number
+#     generator as the random state of a die),
+# * using boosted dynamic classes from `booster` submodule, which are
+#     automatically implemented on the NumPy back-end but also include some
+#     additional optimisations.
+
 import abc as _abc
 import collections as _collections
 _collections_abc = getattr(_collections, 'abc', _collections)
@@ -205,7 +223,7 @@ class FiniteDie (Die):
         return instance
 
     def __init__ (self, size = 780, random_state = None):
-        super(FiniteDie, self).__init__(random_state)
+        super(FiniteDie, self).__init__(random_state = random_state)
 
         if not isinstance(size, _types.AnyInteger):
             raise TypeError("Size must be an integral value.")
@@ -233,6 +251,10 @@ class FiniteDie (Die):
     def size (self):
         return self._size
 
+    @property
+    def remaining (self):
+        return self._size - self._index
+
 @_enum.unique
 class Slot (_enum.IntEnum):
     """Represents slots in a column of a yamb game table.
@@ -249,7 +271,7 @@ The exception was made to ensure that slots `ONE`, `TWO`, ..., `SIX`
 correspond to index values 1, 2, ..., 6 but also that no index is skipped.
 """
 
-    # Grand total
+    # Grand total (sum of partial sums)
     TOTAL = 0
 
     # Numbers
@@ -626,17 +648,15 @@ alter them.
                     return c * r
             return 0
         elif slot in cls.sum_slots:
-            return sum(map(_prod, counts))
+            return sum(map(lambda c: c[0] * c[1], counts))
         elif slot == Slot.TWO_PAIRS:
-            if counts and counts[0][1] >= 4:
-                return 4 * counts[0][0] + 10
-            elif (
-                len(counts) >= 2 and
-                min(counts[0][1], counts[1][1]) >= 2
-            ):
-                return 2 * (counts[0][0] + counts[1][0]) + 10
-            else:
-                return 0
+            return \
+                2 * (counts[0][0] + counts[1][0]) + 10 \
+                    if (
+                        len(counts) >= 2 and
+                        min(counts[0][1], counts[1][1]) >= 2
+                    ) \
+                        else 0
         elif slot == Slot.STRAIGHT:
             n = 0
             for i in _range(1, len(results)):
@@ -645,29 +665,27 @@ alter them.
                     if n >= 4:
                         return 10 * results[i - n] + 25
                 else:
-                    return 0
+                    n = 0
             return 0
         elif slot == Slot.FULL_HOUSE:
-            if counts and counts[0][1] >= 5:
-                return 5 * counts[0][0] + 30
-            elif (
-                len(counts) >= 2 and
-                counts[0][1] >= 3 and
-                counts[1][1] >= 2
-            ):
-                return 3 * counts[0][0] + 2 * counts[1][0] + 30
-            else:
-                return 0
+            return \
+                3 * counts[0][0] + 2 * counts[1][0] + 30 \
+                    if (
+                        len(counts) >= 2 and
+                        counts[0][1] >= 3 and
+                        counts[1][1] >= 2
+                    ) \
+                        else 0
         elif slot == Slot.CARRIAGE:
             return \
                 4 * counts[0][0] + 40 \
                     if (counts and counts[0][1] >= 4) \
-                    else 0
+                        else 0
         elif slot == Slot.YAMB:
             return \
                 5 * counts[0][0] + 50 \
                     if (counts and counts[0][1] >= 5) \
-                    else 0
+                        else 0
         else:
             raise KeyError(
                 "Slot {slot} is not recognised.".format(slot = slot)
