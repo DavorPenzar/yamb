@@ -50,17 +50,6 @@ _iterkeys = lambda m: getattr(m, 'iterkeys', m.keys)()
 _itervalues = lambda m: getattr(m, 'itervalues', m.keys)()
 _iteritems = lambda m: getattr(m, 'iteritems', m.items)()
 
-_prod = None
-if _sys.version_info.major < 3:
-    def _prod (values):
-        r = 1
-        for v in values:
-            r *= v
-
-        return r
-else:
-    _prod = _math.prod
-
 class Die (object):
     """Represents a rollable 6-sided game die.
 
