@@ -114,7 +114,11 @@ like this:
             isinstance(random_state, _types.AnyRandomState)
         ):
             self._random_state = random_state
-        elif _np is not None and _types.NumpyBitGenerator:
+        elif (
+            _np is not None and
+            _types.NumpyBitGenerator and
+            isinstance(random_state, _types.NumpyBitGenerator)
+        ):
             self._random_state = _np.random.default_rng(random_state)
         elif (
             callable(random_state) or
@@ -154,9 +158,9 @@ like this:
                                         k = n
                                     )
             elif (
-                (_np is not None and self._random_state is _np.random) or
+                _np is not None and
                 (
-                    _types.NumpyRandomState is not None and
+                    self._random_state is _np.random or
                     isinstance(self._random_state, _types.NumpyRandomState)
                 )
             ):
