@@ -573,7 +573,7 @@ tuple[integer]
     Ordered (ascending) unique results of the dice roll.
 
 tuple[tuple[integer, int]]
-    Ordered (descending by the second item) unique counts of results of the
+    Ordered (descending colexicographically) unique counts of results of the
     original dice roll.  Each item represents a pair ``(result, count)``.
 
 See Also
@@ -612,7 +612,7 @@ results : sequence[integer]
     Ordered (ascending) unique results of a dice roll.
 
 counts : squence[sequence[integer, integer]]
-    Ordered (descending by the second item) unique counts of results of the
+    Ordered (descending colexicographically) unique counts of results of the
     original dice roll.  Each item represents a pair ``(result, count)``.
 
 Returns
