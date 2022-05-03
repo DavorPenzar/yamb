@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from .engine import *
+from ._engine import *
 
 __doc__ = \
 """Simple light-weight object-oriented implementation of the interface of \
@@ -13,4 +13,4 @@ counter announced, are impossible to implement without implementing a custom
 back-channel communication amongst the players.
 """
 
-__all__ = list(o for o in dir() if o and not o.startswith('_'))
+__all__ = list(o for o in dir() if not o.startswith('_'))
