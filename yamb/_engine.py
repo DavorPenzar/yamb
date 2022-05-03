@@ -2166,9 +2166,12 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
         if not roll:
             return self.start_turn()
 
-        results = self._dice.roll(
-            self._n_dice if replace is None else sum(replace)
-        )
+        results = None
+        if replace is None:
+            replace = list(True for _ in range(self._n_dice))
+            results = self._dice.roll(self._n_dice)
+        else:
+            results = self._dice.roll(sum(replace))
 
         j = 0
         for i in _range(self._n_dice):

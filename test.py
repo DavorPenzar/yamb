@@ -17,9 +17,9 @@ def _get_requirements (requirements):
     args = list(None for _ in requirements[0])
     kwargs = dict()
     for j, a in enumerate(requirements[0]):
-        args[j] = a(int(input()))
+        args[j] = a(int(input().strip()))
     for k, a in requirements[1].items():
-        kwargs[k] = a(int(input(f"{k} = ")))
+        kwargs[k] = a(int(input(f"{k} = ").strip()))
 
     args = tuple(args)
 
@@ -37,23 +37,28 @@ def main (argv = []):
 
         print(yamb.to_pandas(str_index = True))
 
-        for i in range(4):
-            results, requirements = yamb.roll_dice(i, replace)
+        for roll in range(4):
+            results, requirements = yamb.roll_dice(roll, replace)
 
-            if i:
+            if roll:
                 print(f"Results: {repr(results)}")
 
             if any(r for r in requirements):
                 print(f"Requirements: {repr(requirements)}")
 
-                c = input('Require for column: ')
-                if c:
-                    c = int(c) - 1
-                    if requirements[c]:
-                        args, kwargs = _get_requirements(requirements[c])
-                        yamb.make_pre_filling_action(c, i, *args, **kwargs)
+                column = None
+                free_columns = list(c for c in range(len(yamb)) if not yamb[c].is_full())
+                if len(free_columns) == 1:
+                    column = free_columns[0]
+                else:
+                    column = input('Require for column: ').strip()
+                if column:
+                    column = int(column) - 1
+                    if requirements[column]:
+                        args, kwargs = _get_requirements(requirements[column])
+                        yamb.make_pre_filling_action(column, roll, *args, **kwargs)
 
-            if i and i != 3:
+            if roll and roll != 3:
                 my_replace = input('Replace: ')
                 if my_replace:
                     my_replace = frozenset(int(r.strip()) for r in my_replace.split(','))
@@ -64,14 +69,18 @@ def main (argv = []):
 
         column = yamb.which_column_is_locked()
         if column is None:
-            column = int(input('Enter in column: ')) - 1
+            free_columns = list(c for c in range(len(yamb)) if not yamb[c].is_full())
+            if len(free_columns) == 1:
+                column = free_columns[0]
+            else:
+                column = int(input('Enter in column: ').strip()) - 1
 
-        next_slots = yamb.columns[column].get_next_available_slots()
+        next_slots = yamb[column].get_next_available_slots()
         slot = None
         if len(next_slots) == 1:
             slot = next_slots[0]
         else:
-            slot = int(input('In slot: '))
+            slot = int(input('In slot: ').strip())
 
         requirements = yamb.end_turn(column, slot)
         if requirements:
@@ -83,7 +92,7 @@ def main (argv = []):
         print('')
 
         print(yamb.to_pandas(str_index = True))
-        print(f"Final score: {sum(c.TOTAL for c in yamb.columns)}")
+        print(f"Final score: {sum(yamb[c].TOTAL for c in len(yamb))}")
 
     return 0
 
