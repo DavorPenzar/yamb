@@ -201,7 +201,9 @@ Notes
 If NumPy is available and `random_state` is a NumPy (pseudo-)random number
 generator, `n` may be a tuple of integers in which case an array of such shape
 is returned.  This is the main reason why the parameter `n` is not checked but
-passed as is to the underlying number generator function.
+passed as is to the underlying number generator function.  However, do not
+rely on this behaviour being preserved in extension subclasses of the `Die`
+class.
 """
         return self._roller(n)
 
@@ -280,8 +282,8 @@ and `remaining` properties, as well as the `reset` method, for this.
         """Resets the total sample of the die.
 
 After the method is called, the die once again offers a total of `size` roll
-results as when it was initialised, but reseting an existing die might be more
-convenient sometimes than initialising a new die.
+results as when it was initialised, but reseting an existing die might
+sometimes be more convenient than initialising a new die.
 """
         self._results = self._roller(self._size)
         self._index = 0
@@ -1788,7 +1790,7 @@ considered fillable in any next round).
 
         return instance
 
-    def __init__ (self, order = 'down', name = None, check_input = True):
+    def __init__ (self, order = Order.DOWN, name = None, check_input = True):
         super(OrderedColumn, self).__init__(
             name = name,
             check_input = check_input
@@ -2049,7 +2051,7 @@ class Yamb (object):
     """Represents a yamb game instance.
 
 The class provides methods for managing a yamb game, such as rolling the dice
-and filling columns, all the while making sure the rules are followed.
+and filling columns/* all the while making sure the rules are followed */.
 
 Parameters
 ----------
@@ -2064,9 +2066,10 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
     @classmethod
     def _new_empty_results (cls, n):
         if isinstance(n, _AnyIterable):
-            if not isinstance(n, _AnyCollection):
-                n = list(n)
-            n = len(n)
+            if isinstance(n, _AnyCollection):
+                return list(0 for _ in range(len(n)))
+            else:
+                return list(0 for _ in n)
 
         return list(0 for _ in range(n))
 
@@ -2163,15 +2166,15 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
         if not roll:
             return self.start_turn()
 
-        if replace is None:
-            self._results = self._dice.roll(self._n_dice)
-        else:
-            results = self._dice.roll(sum(replace))
-            j = 0
-            for i in _range(self._n_dice):
-                if replace[i]:
-                    self._results[i] = results[j]
-                    j += 1
+        results = self._dice.roll(
+            self._n_dice if replace is None else sum(replace)
+        )
+
+        j = 0
+        for i in _range(self._n_dice):
+            if replace[i]:
+                self._results[i] = results[j]
+                j += 1
 
         return (self._results, self.get_all_pre_filling_requirements(roll))
 
@@ -2230,16 +2233,20 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
     def __len__ (self):
         return len(self._columns)
 
-    def __iter__ (self):
-        for c in self._columns:
-            yield c
-
     def __getitem__ (self, key):
         return self._columns[key]
 
     @property
     def columns (self):
         return self._columns
+
+    @property
+    def n_dice (self):
+        return self._n_dice
+
+    @property
+    def n_rolls (self):
+        return self._n_rolls
 
     @property
     def dice (self):
