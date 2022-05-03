@@ -26,13 +26,19 @@ import random as _random
 import sys as _sys
 
 _np = None
+_pd = None
 try:
     import numpy as _np
+except ImportError:
+    pass
+try:
+    import pandas as _pd
 except ImportError:
     pass
 
 from ._types import \
     AnyIterable as _AnyIterable, \
+    AnyCollection as _AnyCollection, \
     AnySequence as _AnySequence, \
     AnyString as _AnyString, \
     AnyNumber as _AnyNumber, \
@@ -472,6 +478,144 @@ method.
         ]
     )
     slots = fillable_slots | auto_slots
+
+    _number_slots_array = None
+    _sum_slots_array = None
+    _collection_slots_array = None
+    _fillable_slots_array = None
+    _auto_slots_array = None
+    _slots_array = None
+    if _np is not None:
+        _number_slots_array = _np.array(
+            list(sorted(number_slots)),
+            dtype = _np.int32
+        )
+        _sum_slots_array = _np.array(
+            list(sorted(sum_slots)),
+            dtype = _np.int32
+        )
+        _collection_slots_array = _np.array(
+            list(sorted(collection_slots)),
+            dtype = _np.int32
+        )
+        _fillable_slots_array = _np.array(
+            list(sorted(fillable_slots)),
+            dtype = _np.int32
+        )
+        _auto_slots_array = _np.array(
+            list(sorted(auto_slots)),
+            dtype = _np.int32
+        )
+        _slots_array = _np.array(
+            list(sorted(slots)),
+            dtype = _np.int32
+        )
+        _number_slots_array.flags.writeable = False
+        _sum_slots_array.flags.writeable = False
+        _collection_slots_array.flags.writeable = False
+        _fillable_slots_array.flags.writeable = False
+        _auto_slots_array.flags.writeable = False
+        _slots_array.flags.writeable = False
+    else:
+        del _number_slots_array
+        del _sum_slots_array
+        del _collection_slots_array
+        del _fillable_slots_array
+        del _auto_slots_array
+        del _slots_array
+
+
+    _number_slots_index = None
+    _sum_slots_index = None
+    _collection_slots_index = None
+    _fillable_slots_index = None
+    _auto_slots_index = None
+    _slots_index = None
+    _number_slots_str_index = None
+    _sum_slots_str_index = None
+    _collection_slots_str_index = None
+    _fillable_slots_str_index = None
+    _auto_slots_str_index = None
+    _slots_str_index = None
+    if _pd is not None:
+        _pd_1_or_higher = \
+            _np.lib.NumpyVersion(_pd.__version__) >= _np.lib.NumpyVersion('1.0.0')
+        _str_dtype = _pd.StringDtype() if _pd_1_or_higher else str
+        _number_slots_index = _pd.Index(
+            list(sorted(number_slots)),
+            dtype = int,
+            name = 'Slot'
+        )
+        _sum_slots_index = _pd.Index(
+            list(sorted(sum_slots)),
+            dtype = int,
+            name = 'Slot'
+        )
+        _collection_slots_index = _pd.Index(
+            list(sorted(collection_slots)),
+            dtype = int,
+            name = 'Slot'
+        )
+        _fillable_slots_index = _pd.Index(
+            list(sorted(fillable_slots)),
+            dtype = int,
+            name = 'Slot'
+        )
+        _auto_slots_index = _pd.Index(
+            list(sorted(auto_slots)),
+            dtype = int,
+            name = 'Slot'
+        )
+        _slots_index = _pd.Index(
+            list(sorted(slots)),
+            dtype = int,
+            name = 'Slot'
+        )
+        _number_slots_str_index = _pd.Index(
+            list(s.name for s in sorted(number_slots)),
+            dtype = _str_dtype,
+            name = 'Slot'
+        )
+        _sum_slots_str_index = _pd.Index(
+            list(s.name for s in sorted(sum_slots)),
+            dtype = _str_dtype,
+            name = 'Slot'
+        )
+        _collection_slots_str_index = _pd.Index(
+            list(s.name for s in sorted(collection_slots)),
+            dtype = _str_dtype,
+            name = 'Slot'
+        )
+        _fillable_slots_str_index = _pd.Index(
+            list(s.name for s in sorted(fillable_slots)),
+            dtype = _str_dtype,
+            name = 'Slot'
+        )
+        _auto_slots_str_index = _pd.Index(
+            list(s.name for s in sorted(auto_slots)),
+            dtype = _str_dtype,
+            name = 'Slot'
+        )
+        _slots_str_index = _pd.Index(
+            list(s.name for s in sorted(slots)),
+            dtype = _str_dtype,
+            name = 'Slot'
+        )
+        del _pd_1_or_higher
+        del _str_dtype
+    else:
+        del _number_slots_index
+        del _sum_slots_index
+        del _collection_slots_index
+        del _fillable_slots_index
+        del _auto_slots_index
+        del _slots_index
+        del _number_slots_str_index
+        del _sum_slots_str_index
+        del _collection_slots_str_index
+        del _fillable_slots_str_index
+        del _auto_slots_str_index
+        del _slots_str_index
 
     lambda_score = None
 
@@ -1399,9 +1543,8 @@ Raises
 TypeError
     If `fillable` is not a boolean value.
 """
-        if self._check_input:
-            if not isinstance(fillable, _AnyBoolean):
-                raise TypeError("Fillable flag must be a boolean value.")
+        if self._check_input and not isinstance(fillable, _AnyBoolean):
+            raise TypeError("Fillable flag must be a boolean value.")
 
         return not any(
             self._type.is_lambda(self._slots[s]) \
@@ -1434,6 +1577,7 @@ See Also
 --- ----
 scores : Similar property but does not ensure `numpy.ndarray`
 __array__ : Similar method but without a dependency availability check
+to_pandas : Similar method but returns a `pandas.Series`
 
 Notes
 -----
@@ -1445,6 +1589,60 @@ this method as well, but a cautionary dependency check shall be done first.
             raise NotImplementedError("Missing optional dependency 'numpy'.")
 
         return self.__array__()
+
+    def to_pandas (self, str_index = False):
+        """Returns the scores aranged into a `pandas.Series`.
+
+This method returns a similar structure to the `scores` property, but it is
+ensured that the result is a `pandas.Series`.  If the object returned by the
+`scores` property is already a `numpy.ndarray`, mutating the series returned
+by this method shall affect the column's in-memory object.
+
+Please refer to the documentation for `to_numpy` method and `numpy.asanyarray`
+function for more details.
+
+Parameters
+----------
+str_index : boolean, default = False
+    If ``True``, the resulting `pandas.Series` shall use an index of integers
+    (slot index values); otherwise an index of strings (slot names) is used.
+
+Returns
+-------
+pandas.Series
+    Scores aranged into a `pandas.Series`.
+
+Raises
+------
+NotImplementedArray
+    If NumPy and Panas back-ends are unavailable (if `numpy` and/or `pandas`
+    cannot be imported).
+
+See Also
+--- ----
+to_numpy : Similar method but returns a `numpy.ndarray`
+
+Notes
+-----
+Instead of overriding this method, consider overriding the `__array__` method
+instead.  The object returned by the `__array__` method shall be returned by
+this method as well, but a cautionary dependency check shall be done first.
+"""
+        if _np is None or _pd is None:
+            raise NotImplementedError(
+                "Missing optional dependencies 'numpy' and/or 'pandas'."
+            )
+
+        if self._check_input and not isinstance(str_index, _AnyBoolean):
+            raise TypeError("String index flag must be a boolean value.")
+
+        return _pd.Series(
+            self.__array__(),
+            index = \
+                self._type._slots_str_index if str_index \
+                    else self._type._slots_index,
+            name = self._name
+        )
 
     def __array__ (self):
         """Returns the scores aranged into a `numpy.ndarray`.
@@ -1475,8 +1673,8 @@ is undefined and not guaranteed.
         return len(self._slots)
 
     def __iter__ (self):
-        for slot in Slot:
-            yield slot
+        for s in Slot:
+            yield s
 
     def __getitem__ (self, key):
         """Returnes the score of the slot.
@@ -1548,6 +1746,10 @@ of cheating when done during a game.  Instead, create a copy using
 ``copy.copy(scores)`` or ``copy.deepcopy(scores)`` before altering it.
 """
         return self._slots
+
+    def type_ (self):
+        """The type used by the column for calling class methods."""
+        return self._type
 
 class OrderedColumn (Column):
     """Represents an ordered column.
@@ -1861,6 +2063,11 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
 
     @classmethod
     def _new_empty_results (cls, n):
+        if isinstance(n, _AnyIterable):
+            if not isinstance(n, _AnyCollection):
+                n = list(n)
+            n = len(n)
+
         return list(0 for _ in range(n))
 
     def __new__ (cls, *args, **kwargs):
@@ -1869,12 +2076,19 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
         instance._type = None
         instance._columns = None
         instance._n_dice = None
+        instance._n_rolls = None
         instance._dice = None
         instance._results = None
 
         return instance
 
-    def __init__ (self, columns = None, n_dice = 5, random_state = None):
+    def __init__ (
+        self,
+        columns = None,
+        n_dice = 5,
+        n_rolls = 3,
+        random_state = None
+    ):
         super(Yamb, self).__init__()
 
         self._type = self.__class__
@@ -1893,14 +2107,24 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
             for c in self._columns:
                 if not isinstance(c, Column):
                     raise TypeError(
-                        "Columns must be of type `{column_type}`, column " \
+                        "Columns must be of type `Column`, column " \
                             "`{column}` not understood.".format(
-                                column_type = type(Column),
                                 column = c
                             )
                     )
 
+        if not isinstance(n_dice, _AnyInteger):
+            raise TypeError("Number of dice must be an integral value.")
+        if n_dice <= 0:
+            raise ValueError("Number of dice must be greater than 0.")
         self._n_dice = int(n_dice)
+
+        if not isinstance(n_rolls, _AnyInteger):
+            raise TypeError("Number of rolls must be an integral value.")
+        if n_rolls <= 0:
+            raise ValueError("Number of rolls must be greater than 0.")
+        self._n_rolls = int(n_rolls)
+
         self._dice = \
             random_state if isinstance(random_state, Die) \
                 else Die(random_state)
@@ -1910,12 +2134,21 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
     def which_column_is_locked (self):
         return self._locked
 
+    def start_turn (self):
+        self._locked = None
+
+        self._results = self._type._new_empty_results(self._results)
+        self._locked = None
+
+        return (self._results, self.get_all_pre_filling_requirements(0))
+
     def get_all_pre_filling_requirements (self, roll):
          return list(
              c.requires_pre_filling_action(roll) for c in self._columns
         )
 
     def make_pre_filling_action (self, column, roll, *args, **kwargs):
+        #assert 0 <= roll <= self._n_rolls
         #assert self._locked is None or column == self._locked
 
         self._columns[column].pre_filling_action(roll, *args, **kwargs)
@@ -1924,21 +2157,21 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
             self._locked = column
 
     def roll_dice (self, roll = 0, replace = None):
+        #assert 0 <= roll <= self._n_rolls
         #assert roll or replace is None
 
         if not roll:
-            self._results = self._type._new_empty_results(self._n_dice)
-            self._locked = None
+            return self.start_turn()
+
+        if replace is None:
+            self._results = self._dice.roll(self._n_dice)
         else:
-            if replace is None:
-                self._results = self._dice.roll(self._n_dice)
-            else:
-                results = self._dice.roll(sum(replace))
-                j = 0
-                for i in _range(self._n_dice):
-                    if replace[i]:
-                        self._results[i] = results[j]
-                        j += 1
+            results = self._dice.roll(sum(replace))
+            j = 0
+            for i in _range(self._n_dice):
+                if replace[i]:
+                    self._results[i] = results[j]
+                    j += 1
 
         return (self._results, self.get_all_pre_filling_requirements(roll))
 
@@ -1970,6 +2203,39 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
 
     def is_full (self, fillable = False):
         return all(c.is_full(fillable) for c in self._columns)
+
+    def get_total (self, slot = Slot.TOTAL):
+        return sum(c[slot] for c in self._columns)
+
+    def to_numpy (self):
+        if _np is None:
+            raise NotImplementedError("Missing optional dependency 'numpy'.")
+
+        return self.__array__()
+
+    def to_pandas (self, str_index = False):
+        if _np is None or _pd is None:
+            raise NotImplementedError(
+                "Missing optional dependencies 'numpy' and/or 'pandas'."
+            )
+
+        return _pd.concat(
+            tuple(c.to_pandas(str_index) for c in self._columns),
+            axis = 1
+        )
+
+    def __array__ (self):
+        return _np.column_stack(self._columns)
+
+    def __len__ (self):
+        return len(self._columns)
+
+    def __iter__ (self):
+        for c in self._columns:
+            yield c
+
+    def __getitem__ (self, key):
+        return self._columns[key]
 
     @property
     def columns (self):

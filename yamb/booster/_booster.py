@@ -18,8 +18,10 @@ if (_sys.version_info.major, _sys.version_info.minor) < (3, 2):
 del _sys
 
 import functools as _functools
+import math as _math
 
 _np = None
+_pd = None
 try:
     import numpy as _np
 except ImportError:
@@ -33,12 +35,26 @@ if _np.lib.NumpyVersion(_np.__version__) < _np.lib.NumpyVersion('1.17.0'):
             "version: {np_version}). Install numpy >= 1.17.0 for boosting " \
             "support.".format(np_version = _np.__version__)
     )
+try:
+    import pandas as _pd
+except ImportError:
+    raise ImportError(
+        "Missing optional dependency 'pandas'. Install pandas >= 1.0.0 for " \
+            "boosting support."
+    )
+if _np.lib.NumpyVersion(_pd.__version__) < _np.lib.NumpyVersion('1.0.0'):
+    raise ImportError(
+        "Optional dependency 'pandas' is not of a suitable version (found " \
+            "version: {pd_version}). Install pandas >= 1.0.0 for boosting " \
+            "support.".format(pd_version = _pd.__version__)
+    )
 
 from .._types import \
     AnyHashable as _AnyHashable, \
     AnyString as _AnyString, \
     AnyNumber as _AnyNumber, \
-    AnyInteger as _AnyInteger
+    AnyInteger as _AnyInteger, \
+    AnyBoolean as _AnyBoolean
 
 from .. import \
     Die as _Die, \
@@ -63,7 +79,7 @@ already been boosted.
 
 Parameters
 ----------
-cls : type[engine.Die], default = engine.Die
+cls : type[Die], default = Die
     Class to boost.
 
 class_name : string, optional
@@ -71,14 +87,23 @@ class_name : string, optional
 
 Returns
 -------
-type[engine.Die]
+type[Die]
     The boosted subclass version of `cls`.
 
 Raises
 ------
 TypeError
-    If `cls` is not a subclass of `engine.Die` class.  If `class_name` is not
-    a string.
+    If `cls` is not a subclass of `Die` class.  If `class_name` is not a
+    string.
+
+Notes
+-----
+This method returns a dynamically created class.  Do not serialise and
+deserialise (e. g. using `pickle`) instances of the resulting class as it may
+lead to unexpected/undesired behaviour; only use the instances on a single
+thread / in a single process as initiated.  If you need to serialise a boosted
+class instance, please refer to the code of this method and implement a custom
+static boosted class.
 """
     if not (isinstance(cls, type) and issubclass(cls, _Die)):
         raise TypeError("Base class must be a die subclass.")
@@ -135,13 +160,20 @@ method is implemented with the `numpy.isnan` universal function
 (`numpy.ufunc`), therefore multiple scores may be checked at once by passing
 an array-like input.
 
-Additionally, the `__array__` method now simply returns the `_slots` instance
-variable, and checking for `numpy` dependency is omitted from the `to_numpy`
+The `__array__` method now simply returns the `_slots` instance variable, and
+checking for `numpy` dependency is omitted from the `to_numpy` method.  Also,
+a check for `numpy` and `pandas` dependencies is removed from the `to_pandas`
 method.
+
+Additionally, the resulting class has a class variable `boosted` set to a
+value of ``True``.  This is set so one can easily indentify if the class is
+boosted or not.  It is not, however, used to determine if the provided class
+needs boosting or not: the provided class is always boosted, even if it has
+already been boosted.
 
 Parameters
 ----------
-cls : type[engine.Column], default = engine.Column
+cls : type[Column], default = Column
     Class to boost.
 
 max_cache_size : integer, default = 32
@@ -153,14 +185,17 @@ class_name : string, optional
 
 Returns
 -------
-type[engine.Column]
+type[Column]
     The boosted subclass version of `cls`.
 
 Raises
 ------
 TypeError
-    If `cls` is not a subclass of `engine.Die` class.  If `max_cache_size` is
-    not an integral value.  If `class_name` is not a string.
+    If `cls` is not a subclass of `Column` class.  If `max_cache_size` is not
+    an integral value.  If `class_name` is not a string.
+
+ValueError
+    If `max_cache_size` is less than 0.
 
 Notes
 -----
@@ -200,38 +235,6 @@ integers in a standard game with 5 dice.
         __doc__ = cls.__doc__
 
         boosted = True
-
-        _number_slots_array = _np.array(
-            list(sorted(cls.number_slots)),
-            dtype = _np.int32
-        )
-        _sum_slots_array = _np.array(
-            list(sorted(cls.sum_slots)),
-            dtype = _np.int32
-        )
-        _collection_slots_array = _np.array(
-            list(sorted(cls.collection_slots)),
-            dtype = _np.int32
-        )
-        _fillable_slots_array = _np.array(
-            list(sorted(cls.fillable_slots)),
-            dtype = _np.int32
-        )
-        _auto_slots_array = _np.array(
-            list(sorted(cls.auto_slots)),
-            dtype = _np.int32
-        )
-        _slots_array = _np.array(
-            list(sorted(cls.slots)),
-            dtype = _np.int32
-        )
-
-        _number_slots_array.flags.writeable = False
-        _sum_slots_array.flags.writeable = False
-        _collection_slots_array.flags.writeable = False
-        _fillable_slots_array.flags.writeable = False
-        _auto_slots_array.flags.writeable = False
-        _slots_array.flags.writeable = False
 
         lambda_score = float('nan')
 
@@ -302,6 +305,18 @@ integers in a standard game with 5 dice.
 
         def to_numpy (self):
             return self.__array__()
+
+        def to_pandas(self, str_index = False):
+            if self._check_input and not isinstance(str_index, _AnyBoolean):
+                raise TypeError("String index flag must be a boolean value.")
+
+            return _pd.Series(
+                self.__array__(),
+                index = \
+                    self._type._slots_str_index if str_index \
+                        else self._type._slots_index,
+                name = self._name
+            )
 
         def __array__ (self):
             return self._slots

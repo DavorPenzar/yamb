@@ -16,6 +16,7 @@ except ImportError:
 
 Hashable = (_collections_abc.Hashable, )
 Iterable = (_collections_abc.Iterable, )
+Collection = (_collections_abc.Collection, )
 Sequence = (_collections_abc.Sequence, )
 Mapping = (_collections_abc.Mapping, )
 String = [ str, bytearray, memoryview ]
@@ -39,6 +40,7 @@ RandomState = tuple(RandomState)
 
 NumpyHashable = None
 NumpyIterable = None
+NumpyCollection = None
 NumpySequence = None
 NumpyMapping = None
 NumpyString = None
@@ -54,6 +56,7 @@ NumpyRandomState = None
 if _np is not None:
     NumpyHashable = ()
     NumpyIterable = (_np.ndarray, )
+    NumpyCollection = (_np.ndarray, )
     NumpySequence = (_np.ndarray, )
     NumpyMapping = ()
     NumpyString = [ _np.str_ ]
@@ -97,6 +100,8 @@ if _np is not None:
 
 AnyHashable = Hashable if NumpyHashable is None else Hashable + NumpyHashable
 AnyIterable = Iterable if NumpyIterable is None else Iterable + NumpyIterable
+AnyCollection = \
+    Collection if NumpyCollection is None else Collection + NumpyCollection
 AnySequence = Sequence if NumpySequence is None else Sequence + NumpySequence
 AnyMapping = Mapping if NumpyMapping is None else Mapping + NumpyMapping
 AnyString = String if NumpyString is None else String + NumpyString

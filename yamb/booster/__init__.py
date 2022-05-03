@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from numpy import __version__ as __numpy_version__
+from pandas import __version__ as __pandas_version__
 
 from ._booster import *
 
@@ -12,9 +13,10 @@ use of caching intermediate results-score evaluations.
 
 Requirements:
 * Python version 3.2 or higher,
-* NumPy version 1.17.0 or higher.
+* NumPy version 1.17.0 or higher,
+* Pandas version 1.0.0 or higher.
 """
 
 __all__ = \
-    [ '__numpy_version__' ] + \
+    [ '__numpy_version__', '__pandas_version__' ] + \
         list(o for o in dir() if not o.startswith('_'))

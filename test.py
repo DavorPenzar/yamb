@@ -26,20 +26,16 @@ def _get_requirements (requirements):
     return (args, kwargs)
 
 def main (argv = []):
-    yamb = _engine.Yamb()
+    yamb = _engine.Yamb(
+        random_state = _engine.FiniteDie(
+            random_state = _np.random.default_rng()
+        )
+    )
 
     while not yamb.is_full():
         replace = None
 
-        print(
-            _pd.DataFrame(
-                _np.column_stack(
-                    list(c for c in yamb.columns)
-                ),
-                columns = list(c.name for c in yamb.columns),
-                index = list(s.name for s in _engine.Slot)
-            )
-        )
+        print(yamb.to_pandas(str_index = True))
 
         for i in range(4):
             results, requirements = yamb.roll_dice(i, replace)
@@ -85,6 +81,9 @@ def main (argv = []):
         yamb.update_auto_slots()
 
         print('')
+
+        print(yamb.to_pandas(str_index = True))
+        print(f"Final score: {sum(c.TOTAL for c in yamb.columns)}")
 
     return 0
 
