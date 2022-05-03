@@ -22,7 +22,6 @@ import abc as _abc
 import collections as _collections
 _collections_abc = getattr(_collections, 'abc', _collections)
 import enum as _enum
-import math as _math
 import random as _random
 import sys as _sys
 
@@ -32,7 +31,17 @@ try:
 except ImportError:
     pass
 
-import _types
+from ._types import \
+    AnyIterable as _AnyIterable, \
+    AnySequence as _AnySequence, \
+    AnyString as _AnyString, \
+    AnyNumber as _AnyNumber, \
+    AnyInteger as _AnyInteger, \
+    AnyBoolean as _AnyBoolean, \
+    AnyRandomState as _AnyRandomState, \
+    RandomState as _RandomState, \
+    NumpyBitGenerator as _NumpyBitGenerator, \
+    NumpyRandomState as _NumpyRandomState
 
 _range = xrange if _sys.version_info.major < 3 else range
 
@@ -85,7 +94,7 @@ like this:
 
         if (
             isinstance(random_state, type) and
-            issubclass(random_state, _types.AnyRandomState)
+            issubclass(random_state, _AnyRandomState)
         ):
             random_state = random_state()
 
@@ -96,18 +105,18 @@ like this:
         elif isinstance(random_state, Die):
             self._random_state = random_state._random_state
             self._roller = random_state._roller
-        elif isinstance(random_state, _types.AnyNumber):
+        elif isinstance(random_state, _AnyNumber):
             self._random_state = _random.Random(random_state)
         elif (
             random_state is _random or
             (_np is not None and random_state is _np.random) or
-            isinstance(random_state, _types.AnyRandomState)
+            isinstance(random_state, _AnyRandomState)
         ):
             self._random_state = random_state
         elif (
             _np is not None and
-            _types.NumpyBitGenerator and
-            isinstance(random_state, _types.NumpyBitGenerator)
+            _NumpyBitGenerator and
+            isinstance(random_state, _NumpyBitGenerator)
         ):
             self._random_state = _np.random.default_rng(random_state)
         elif (
@@ -126,7 +135,7 @@ like this:
         if self._roller is None:
             if (
                 self._random_state is _random or
-                isinstance(self._random_state, _types.RandomState)
+                isinstance(self._random_state, _RandomState)
             ):
                 if _sys.version_info.major < 3:
                     self._roller = \
@@ -151,7 +160,7 @@ like this:
                 _np is not None and
                 (
                     self._random_state is _np.random or
-                    isinstance(self._random_state, _types.NumpyRandomState)
+                    isinstance(self._random_state, _NumpyRandomState)
                 )
             ):
                 self._roller = \
@@ -239,7 +248,7 @@ and `remaining` properties, as well as the `reset` method, for this.
     def __init__ (self, size = 780, random_state = None):
         super(FiniteDie, self).__init__(random_state = random_state)
 
-        if not isinstance(size, _types.AnyInteger):
+        if not isinstance(size, _AnyInteger):
             raise TypeError("Size must be an integral value.")
         if size < 0:
             raise ValueError("Size must be greater than or equal to 0.")
@@ -499,7 +508,7 @@ TypeError
 ValueError
     If `roll` is not greater than or equal to 0.
 """
-        if not isinstance(roll, _types.AnyInteger):
+        if not isinstance(roll, _AnyInteger):
             raise TypeError("Roll index must be an integral numerical value.")
         if roll < 0:
             raise ValueError("Roll index must be greater than or equal to 0.")
@@ -531,11 +540,11 @@ Additional errors might be raised (and are not caught by the method) when
 converting an integer or a string to a `Slot` via ``Slot(slot)`` and
 ``Slot[slot.upper()]`` calls respectively.
 """
-        if isinstance(slot, _types.AnyString):
+        if isinstance(slot, _AnyString):
             return Slot[slot.upper()]
         if not (
             isinstance(slot, Slot) or
-            isinstance(slot, _types.AnyInteger)
+            isinstance(slot, _AnyInteger)
         ):
             raise TypeError("Slot must be an integral numerical value.")
 
@@ -573,11 +582,11 @@ abstract base class, it is considered a sequence by this method and is not
 converted to a `tuple` or a `list`.
 """
         if (
-            not isinstance(results, _types.AnyIterable) or
-            isinstance(results, _types.AnyString)
+            not isinstance(results, _AnyIterable) or
+            isinstance(results, _AnyString)
         ):
             results = (results, )
-        if not isinstance(results, _types.AnySequence):
+        if not isinstance(results, _AnySequence):
             results = tuple(results)
         if _np is not None and isinstance(results, _np.ndarray):
             if not _np.issubdtype(results.dtype, _np.integer):
@@ -586,7 +595,7 @@ converted to a `tuple` or a `list`.
                 raise ValueError("Results must be in range [1..6].")
         else:
             for r in results:
-                if not isinstance(r, _types.AnyInteger):
+                if not isinstance(r, _AnyInteger):
                     raise TypeError("Results must be integers.")
                 if not 1 <= r <= 6:
                     raise ValueError("Results must be in range [1..6].")
@@ -792,9 +801,9 @@ its values.
 
         self._type = self.__class__
 
-        if not (name is None or isinstance(name, _types.AnyString)):
+        if not (name is None or isinstance(name, _AnyString)):
             raise TypeError("Column name must be a string value.")
-        if not isinstance(check_input, _types.AnyBoolean):
+        if not isinstance(check_input, _AnyBoolean):
             raise TypeError("Check input flag must be a boolean value.")
 
         self._locked = False
@@ -1391,7 +1400,7 @@ TypeError
     If `fillable` is not a boolean value.
 """
         if self._check_input:
-            if not isinstance(fillable, _types.AnyBoolean):
+            if not isinstance(fillable, _AnyBoolean):
                 raise TypeError("Fillable flag must be a boolean value.")
 
         return not any(
@@ -1498,7 +1507,7 @@ than a single integer.
         return self._slots[key]
 
     def __getattr__ (self, name):
-        if isinstance(name, _types.AnyString) and name in Slot.__members__:
+        if isinstance(name, _AnyString) and name in Slot.__members__:
             return self[Slot[name]]
 
         return super(Column, self).__getattribute__(name)
@@ -1585,10 +1594,10 @@ considered fillable in any next round).
 
         if isinstance(order, self._type.Order):
             self._order = order
-        elif isinstance(order, _types.AnyInteger):
+        elif isinstance(order, _AnyInteger):
             self._order = self._type.Order(order)
         else:
-            if not isinstance(order, _types.AnyString):
+            if not isinstance(order, _AnyString):
                 raise TypeError(
                     "Order must be a string or an order value."
                 )
@@ -1911,6 +1920,9 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
 
         self._columns[column].pre_filling_action(roll, *args, **kwargs)
 
+        if self._columns[column].is_locked():
+            self._locked = column
+
     def roll_dice (self, roll = 0, replace = None):
         #assert roll or replace is None
 
@@ -1938,12 +1950,19 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
 
         self._columns[column].post_filling_action(*args, **kwargs)
 
+        self._locked = None
+
     def end_turn (self, column, slot):
         #assert self._locked is None or column == self._locked
 
         self._columns[column].fill_slot(slot, self._results)
 
-        return self.get_post_filling_requirements(column)
+        requirements = self.get_post_filling_requirements(column)
+
+        if not requirements:
+            self._locked = None
+
+        return requirements
 
     def update_auto_slots (self):
         for i in _range(len(self._columns)):
@@ -1957,8 +1976,8 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
         return self._columns
 
     @property
-    def die (self):
-        return self._die
+    def dice (self):
+        return self._dice
 
     @property
     def results (self):

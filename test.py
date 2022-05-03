@@ -66,8 +66,16 @@ def main (argv = []):
 
                 replace = list(((r + 1) in my_replace) for r in range(5))
 
-        column = int(input('Enter in column: ')) - 1
-        slot = int(input('In slot: '))
+        column = yamb.which_column_is_locked()
+        if column is None:
+            column = int(input('Enter in column: ')) - 1
+
+        next_slots = yamb.columns[column].get_next_available_slots()
+        slot = None
+        if len(next_slots) == 1:
+            slot = next_slots[0]
+        else:
+            slot = int(input('In slot: '))
 
         requirements = yamb.end_turn(column, slot)
         if requirements:

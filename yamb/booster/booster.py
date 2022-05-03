@@ -44,10 +44,18 @@ if _np.lib.NumpyVersion(_np.__version__) < _np.lib.NumpyVersion('1.17.0'):
             "support.".format(np_version = _np.__version__)
     )
 
-import _types
-import engine as _engine
+from .._types import \
+    AnyHashable as _AnyHashable, \
+    AnyString as _AnyString, \
+    AnyNumber as _AnyNumber, \
+    AnyInteger as _AnyInteger
 
-def boost_die (cls = _engine.Die, class_name = None):
+from .. import \
+    Die as _Die, \
+    Slot as _Slot, \
+    Column as _Column
+
+def boost_die (cls = _Die, class_name = None):
     """Boosts a die class by enforcing using the NumPy back-end.
 
 When NumPy back-end is enforced, `cls.sides` is converted to a `numpy.ndarray`
@@ -82,9 +90,9 @@ TypeError
     If `cls` is not a subclass of `engine.Die` class.  If `class_name` is not
     a string.
 """
-    if not (isinstance(cls, type) and issubclass(cls, _engine.Die)):
+    if not (isinstance(cls, type) and issubclass(cls, _Die)):
         raise TypeError("Base class must be a die subclass.")
-    if not (class_name is None or isinstance(class_name, _types.AnyString)):
+    if not (class_name is None or isinstance(class_name, _AnyString)):
         raise TypeError("Class name must be a string.")
 
     if class_name is not None:
@@ -108,7 +116,7 @@ TypeError
                     random_state = _np.random.default_rng(),
                     **kwargs
                 )
-            elif isinstance(random_state, _types.AnyNumber):
+            elif isinstance(random_state, _AnyNumber):
                 super(BoostedDie, self).__init__(
                     *args,
                     random_state = _np.random.default_rng(random_state),
@@ -124,7 +132,7 @@ TypeError
     return BoostedDie
 
 def boost_column (
-    cls = _engine.Column,
+    cls = _Column,
     max_cache_size = 0x20,
     class_name = None
 ):
@@ -184,11 +192,11 @@ methods should expect integers and/or maybe short strings, while the latter
 two should also expect quite small structures (flat or composite sequences) of
 integers in a standard game with 5 dice.
 """
-    if not (isinstance(cls, type) and issubclass(cls, _engine.Column)):
+    if not (isinstance(cls, type) and issubclass(cls, _Column)):
         raise TypeError("Base class must be a column subclass.")
-    if not isinstance(max_cache_size, _types.AnyInteger):
+    if not isinstance(max_cache_size, _AnyInteger):
         raise TypeError("Cache size must be an integral value.")
-    if not (class_name is None or isinstance(class_name, _types.AnyString)):
+    if not (class_name is None or isinstance(class_name, _AnyString)):
         raise TypeError("Class name must be a string.")
 
     if max_cache_size < 0:
@@ -243,7 +251,7 @@ integers in a standard game with 5 dice.
         @classmethod
         def _new_empty_scores (cls):
             return _np.full(
-                len(_engine.Slot),
+                len(_Slot),
                 cls.lambda_score,
                 dtype = _np.float32
             )
@@ -268,7 +276,7 @@ integers in a standard game with 5 dice.
         @classmethod
         def _count_results (cls, results):
             return cls._count_hashable_results(
-                results if isinstance (results, _types.AnyHashable)
+                results if isinstance (results, _AnyHashable)
                     else tuple(results)
             )
 
