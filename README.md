@@ -71,6 +71,6 @@ The intended usage was actually to develop an automated computer player of the g
     * generation of many such players through [evolutionary algorithms (EA)](http://en.wikipedia.org/wiki/Evolutionary_algorithm) and seeing if their parameters and performance converges&mdash;these may include neural networks, decision trees, ensembles etc.,
     * hyperparameter optimisation of the [EA](http://en.wikipedia.org/wiki/Evolutionary_algorithm) approach.
 
-If needed, the game engine may be altered/optimised before the development of such players if significant bottleneck are diagnosed during the process.
+If needed, the game engine may be altered/optimised before the development of such players if significant bottleneck are diagnosed during the process. Alternatively, use `yamb.booster` submodule (and optimise it if needed, as well).
 
-Finally, when such players are developed, a user interface around the game may be implemnted to allow human players to play versus each other and/or a computer.
+Finally, when such players are developed, a user interface around the game may be implemnted to allow human players to play versus eachother and/or a computer.
