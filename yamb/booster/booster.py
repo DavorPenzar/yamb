@@ -57,6 +57,12 @@ in-place, meaning that the original `cls`' class variable `sides` is remained
 unaltered, but the resulting class' variable `sides` is set to a
 `numpy.ndarray` version of `cls.side`.
 
+Additionally, the resulting class has a class variable `boosted` set to a
+value of ``True``.  This is set so one can easily indentify if the class is
+boosted or not.  It is not, however, used to determine if the provided class
+needs boosting or not: the provided class is always boosted, even if it has
+already been boosted.
+
 Parameters
 ----------
 cls : type[engine.Die], default = engine.Die

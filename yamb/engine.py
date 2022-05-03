@@ -1,15 +1,5 @@
 # -*- coding: utf-8 -*-
 
-"""Simple light-weight object-oriented implementation of the interface of \
-the yamb game.
-
-The game is primarily implemented as a solitaire game, but may be used for
-implementing a multi-player game (e. g. each player may play at their own
-instance of the `Yamb` game class).  However, some columns, such as the
-counter announced, are impossible to implement without implementing a custom
-back-channel communication amongst the players.
-"""
-
 # NOTE. Many methods in `Column` class and its subclasses could have been
 # implemented using `lambda`, `filter`, `map` and `functools.partial` objects
 # which would represent a noticeable optimisation if the underlying iterables
@@ -173,12 +163,11 @@ like this:
                         )
 
     def roll (self, n = None):
-        """Roll the die.
+        """Rolls the die.
 
 Requesting multiple results via the parameter `n` may be interpreted either as
-rolling the die multiple times or rolling multiple dice simultaneously.  \
-Consequently,
-the results are not necessarily different.
+rolling the die multiple times or rolling multiple dice simultaneously.
+Consequently, the results are not necessarily mutually different.
 
 Parameters
 ----------
@@ -196,7 +185,8 @@ Notes
 -----
 If NumPy is available and `random_state` is a NumPy (pseudo-)random number
 generator, `n` may be a tuple of integers in which case an array of such shape
-is returned.
+is returned.  This is the main reason why the parameter `n` is not checked but
+passed as is to the underlying number generator function.
 """
         return self._roller(n)
 
@@ -206,6 +196,37 @@ is returned.
         return self._random_state
 
 class FiniteDie (Die):
+    """Represents a die with predefined rolling results.
+
+Generating a small amount of (pseudo-)random numbers, especially a single
+number each time, many times, may involve a lot of seemingly unneeded work and
+may therefore be replaced with generating a large amount of numbers at once
+and then sampling from them as a queue.  This is the main idea behind this
+extension of the `Die` class: a predefined amount of rolls is generated at the
+die initialisation, and then each call to the `roll` method simply returns a
+subsample of the requested size that is next in line.
+
+The subsampling is further optimised if NumPy back-end is used since no memory
+allocation and object copying is involved for generating the subsample.  The
+returned subsamples are merely views to parts of the original total sample.
+
+Parameters
+----------
+size : integer
+    The size of the initial total sample that is generated.
+
+random_state
+    Please refer to the documentation for `Die` for more details.
+
+Notes
+-----
+Do not rely on a die alerting its pregenerated total sample is used up, or any
+behaviour of the die in such cases for that matter.  Instead, make sure the
+size of the sample is large enough for the die's purposes, or keep track of
+the remaining sample and reset the die's inner state when needed.  Use `size`
+and `remaining` properties, as well as the `reset` method, for this.
+"""
+
     def __new__ (cls, *args, **kwargs):
         instance = super(FiniteDie, cls).__new__(cls)
 
@@ -240,12 +261,26 @@ class FiniteDie (Die):
 
         return result
 
+    def reset (self):
+        """Resets the total sample of the die.
+
+After the method is called, the die once again offers a total of `size` roll
+results as when it was initialised, but reseting an existing die might be more
+convenient sometimes than initialising a new die.
+"""
+        self._results = self._roller(self._size)
+        self._index = 0
+
     @property
     def size (self):
+        """Size of the total roll results sample held by the die (including \
+the already returned subsamples)."""
         return self._size
 
     @property
     def remaining (self):
+        """The remaining amount of roll results still available (not yet \
+returned)."""
         return self._size - self._index
 
 @_enum.unique
@@ -1360,7 +1395,7 @@ TypeError
                 raise TypeError("Fillable flag must be a boolean value.")
 
         return not any(
-            self._type.is_lambda(self._slot[s]) \
+            self._type.is_lambda(self._slots[s]) \
                 for s in (self._type.fillable_slots if fillable else Slot)
         )
 
@@ -1647,6 +1682,8 @@ class AnnouncedColumn (Column):
             check_input = check_input
         )
 
+        self._announcement = None
+
     def lock (self):
         self._locked = True
 
@@ -1813,16 +1850,25 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
     documentation for `Die` for more details.
 """
 
+    @classmethod
+    def _new_empty_results (cls, n):
+        return list(0 for _ in range(n))
+
     def __new__ (cls, *args, **kwargs):
         instance = super(Yamb, cls).__new__(cls)
 
+        instance._type = None
         instance._columns = None
+        instance._n_dice = None
         instance._dice = None
+        instance._results = None
 
         return instance
 
-    def __init__ (self, columns = None, random_state = None):
+    def __init__ (self, columns = None, n_dice = 5, random_state = None):
         super(Yamb, self).__init__()
+
+        self._type = self.__class__
 
         if columns is None:
             self._columns = [
@@ -1845,33 +1891,75 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
                             )
                     )
 
+        self._n_dice = int(n_dice)
         self._dice = \
             random_state if isinstance(random_state, Die) \
                 else Die(random_state)
 
-    def roll_dice (self, n = 5):
-        """Rolls the dice.
+        self._results = self._type._new_empty_results(self._n_dice)
 
-Parameters
-----------
-n : integer, default = 5
-    Number of results to generate.  If ``None``, a single result is generated.
+    def which_column_is_locked (self):
+        return self._locked
 
-Returns
--------
-result : integer or sequence[integer]
-    Result of the roll, i. e. integer(s) from range [1..6].  If `n` is
-    ``None``, a single result is returned; otherwise a sequence of `n` results
-    is returned.
+    def get_all_pre_filling_requirements (self, roll):
+         return list(
+             c.requires_pre_filling_action(roll) for c in self._columns
+        )
 
-Notes
------
-If NumPy is available and `random_state` is a NumPy (pseudo-)random number
-generator, `n` may be a tuple of integers in which case an array of such shape
-is returned.
-"""
-        return self._dice.roll(n)
+    def make_pre_filling_action (self, column, roll, *args, **kwargs):
+        #assert self._locked is None or column == self._locked
+
+        self._columns[column].pre_filling_action(roll, *args, **kwargs)
+
+    def roll_dice (self, roll = 0, replace = None):
+        #assert roll or replace is None
+
+        if not roll:
+            self._results = self._type._new_empty_results(self._n_dice)
+            self._locked = None
+        else:
+            if replace is None:
+                self._results = self._dice.roll(self._n_dice)
+            else:
+                results = self._dice.roll(sum(replace))
+                j = 0
+                for i in _range(self._n_dice):
+                    if replace[i]:
+                        self._results[i] = results[j]
+                        j += 1
+
+        return (self._results, self.get_all_pre_filling_requirements(roll))
+
+    def get_post_filling_requirements (self, column):
+        return self._columns[column].requires_post_filling_action()
+
+    def make_post_filling_action (self, column, *args, **kwargs):
+        #assert self._locked is None or column == self._locked
+
+        self._columns[column].post_filling_action(*args, **kwargs)
+
+    def end_turn (self, column, slot):
+        #assert self._locked is None or column == self._locked
+
+        self._columns[column].fill_slot(slot, self._results)
+
+        return self.get_post_filling_requirements(column)
+
+    def update_auto_slots (self):
+        for i in _range(len(self._columns)):
+            self._columns[i].update_auto_slots()
+
+    def is_full (self, fillable = False):
+        return all(c.is_full(fillable) for c in self._columns)
+
+    @property
+    def columns (self):
+        return self._columns
 
     @property
     def die (self):
         return self._die
+
+    @property
+    def results (self):
+        return self._results

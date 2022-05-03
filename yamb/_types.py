@@ -18,10 +18,12 @@ Hashable = (_collections_abc.Hashable, )
 Iterable = (_collections_abc.Iterable, )
 Sequence = (_collections_abc.Sequence, )
 Mapping = (_collections_abc.Mapping, )
-String = [ str, bytes, bytearray, memoryview ]
+String = [ str, bytearray, memoryview ]
 if _sys.version_info.major < 3:
     String.insert(0, basestring)
     String.insert(2, unicode)
+else:
+    String.insert(1, bytes)
 String = tuple(String)
 Number = (_numbers.Number, )
 Complex = (_numbers.Complex, complex)
@@ -54,12 +56,17 @@ if _np is not None:
     NumpyIterable = (_np.ndarray, )
     NumpySequence = (_np.ndarray, )
     NumpyMapping = ()
-    NumpyString = [ _np.str_, _np.bytes_ ]
+    NumpyString = [ _np.str_ ]
     if (
         hasattr(_np, 'unicode_') and
-        not (_np.unicode is None or _np.unicode_ is _np.str_)
+        not (_np.unicode_ is None or _np.unicode_ is _np.str_)
     ):
         NumpyString.insert(1, _np.unicode_)
+    if (
+        hasattr(_np, 'bytes_') and
+        not (_np.bytes_ is None or _np.bytes_ is _np.str_)
+    ):
+        NumpyString.append(_np.bytes_)
     NumpyString = tuple(NumpyString)
     NumpyNumber = (_np.number, )
     NumpyComplex = (_np.complexfloating, )
