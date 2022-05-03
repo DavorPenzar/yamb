@@ -91,8 +91,8 @@ def main (argv = []):
 
         print('')
 
-        print(yamb.to_pandas(str_index = True))
-        print(f"Final score: {sum(yamb[c].TOTAL for c in len(yamb))}")
+    print(yamb.to_pandas(str_index = True))
+    print(f"Final score: {sum(yamb[c].TOTAL for c in range(len(yamb)))}")
 
     return 0
 
