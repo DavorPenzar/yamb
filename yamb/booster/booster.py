@@ -109,22 +109,19 @@ TypeError
 
         boosted = True
 
-        def __init__ (self, *args, random_state = None, **kwargs):
+        def __init__ (self, random_state = None, **kwargs):
             if random_state is None:
                 super(BoostedDie, self).__init__(
-                    *args,
                     random_state = _np.random.default_rng(),
                     **kwargs
                 )
             elif isinstance(random_state, _AnyNumber):
                 super(BoostedDie, self).__init__(
-                    *args,
                     random_state = _np.random.default_rng(random_state),
                     **kwargs
                 )
             else:
                 super(BoostedDie, self).__init__(
-                    *args,
                     random_state = random_state,
                     **kwargs
                 )
