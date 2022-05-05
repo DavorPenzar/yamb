@@ -114,8 +114,12 @@ def main (argv = []):
 
     ## *** OUTPUT RESULTS ***
 
+    print('Descriptive statistics:')
     print(scores_stats)
+
     print('')
+
+    print('Expectations:')
     print(expectations)
 
     _plt.show()
