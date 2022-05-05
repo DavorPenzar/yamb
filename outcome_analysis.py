@@ -17,6 +17,14 @@ import seaborn as _sns
 import yamb as _engine
 import yamb.booster as _booster
 
+_BoostedFreeColumn = _booster.boost_column(_engine.FreeColumn)
+
+_plt.style.use('seaborn')
+_sns.set_theme()
+
+n_dice = 5
+n_outcomes = len(_engine.Die.sides) ** n_dice
+
 def _nice_subplots_grid (nsubs):
     r = _math.sqrt(nsubs)
 
@@ -29,14 +37,6 @@ def _nice_subplots_grid (nsubs):
     return { 'nrows': nrows, 'ncols': ncols }
 
 def main (argv = []):
-    BoostedFreeColumn = _booster.boost_column(_engine.FreeColumn)
-
-    _plt.style.use('seaborn')
-    _sns.set_theme()
-
-    n_dice = 5
-    n_outcomes = len(_engine.Die.sides) ** n_dice
-
     ## *** TEST ALL POSSIBLE OUTCOMES ***
 
     scores = _np.zeros((n_outcomes, len(_engine.Slot)), dtype = _np.int32)
@@ -44,10 +44,11 @@ def main (argv = []):
     for i, o in enumerate(
         _itertools.product(_engine.Die.sides, repeat = n_dice)
     ):
-        aux_column = BoostedFreeColumn(check_input = False)
+        aux_column = _BoostedFreeColumn(check_input = False)
         for s in _engine.Column.fillable_slots:
             aux_column.fill_slot(s, o)
         aux_column.update_auto_slots()
+
         _np.copyto(scores[i], aux_column, casting = 'unsafe')
 
     scores = _pd.DataFrame(
@@ -60,6 +61,7 @@ def main (argv = []):
                                                          # SD since all
                                                          # possible outcomes
                                                          # are considered
+
 
     ## *** CALCULATE EXPECTED OUTCOMES ***
 
@@ -93,6 +95,7 @@ def main (argv = []):
         expectations.loc[s, 'Numerator'] = f.numerator
         expectations.loc[s, 'Denominator'] = f.denominator
 
+
     ## *** PLOT HISTOGRAMS ***
 
     hist_fig, hist_ax = _plt.subplots(
@@ -110,6 +113,7 @@ def main (argv = []):
             kde = True,
             ax = hist_ax[ind]
         )
+
 
     ## *** OUTPUT RESULTS ***
 
