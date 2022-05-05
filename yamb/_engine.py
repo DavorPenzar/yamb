@@ -1936,7 +1936,7 @@ class AnnouncedColumn (Column):
 Parameters
 ----------
 after_roll : integer, default = 1
-    One.indexed roll index after which the announcement must be made.
+    One-indexed roll index after which the announcement must be made.
 
 immediately_fill : boolean, default = False
     If ``True``, next rolls after an announcement are disallowed and the
@@ -2154,6 +2154,18 @@ bool
     ``True`` if a slot is announced, ``False`` otherwise.
 """
         return self._announcement is not None
+
+    @property
+    def after_roll (self):
+        """One-indexed roll index after which the announcement must be \
+made."""
+        return self._after_roll
+
+    @property
+    def immediately_fill (self):
+        """Flag indicating if the column must be immediately filled after \
+the announcement."""
+        return self._immediately_fill
 
     @property
     def announcement (self):
@@ -2381,3 +2393,11 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
 class Player (object if _sys.version_info.major < 3 else _abc.ABC):
     if _sys.version_info.major < 3:
         __metaclass__ = _abc.ABCMeta
+
+    def __new__ (cls, *args, **kwargs):
+        instance = super(Player, cls).__new__()
+
+        return instance
+
+    def __init__ (self):
+        pass
