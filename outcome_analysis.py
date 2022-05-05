@@ -106,12 +106,12 @@ def main (argv = []):
     ax_order = 'F' if hist_ax.ndim > 1 and _np.isfortran(hist_ax) else 'C'
 
     for s in _engine.Slot:
-        ind = _np.unravel_index(s, hist_ax.shape, order = ax_order)
+        ax_idx = _np.unravel_index(s, hist_ax.shape, order = ax_order)
         _sns.histplot(
             scores[s.name],
             stat = 'density',
             kde = True,
-            ax = hist_ax[ind]
+            ax = hist_ax[ax_idx]
         )
 
 
