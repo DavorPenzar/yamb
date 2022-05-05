@@ -3,17 +3,37 @@
 # -*- coding: utf-8 -*-
 
 import fractions as _fractions
+from genericpath import isfile
 import itertools as _itertools
+import math as _math
 import sys as _sys
 
+import matplotlib as _mpl
+import matplotlib.pyplot as _plt
 import numpy as _np
 import pandas as _pd
+
+import seaborn as _sns
 
 import yamb as _engine
 import yamb.booster as _booster
 
+def _nice_subplots_grid (nsubs):
+    r = _math.sqrt(nsubs)
+
+    nrows = int(_math.floor(r))
+    ncols = int(_math.ceil(r))
+
+    if nrows < nsubs / ncols:
+        nrows += 1
+
+    return { 'nrows': nrows, 'ncols': ncols }
+
 def main (argv = []):
     BoostedFreeColumn = _booster.boost_column(_engine.FreeColumn)
+
+    _plt.style.use('seaborn')
+    _sns.set_theme()
 
     n_dice = 5
     n_outcomes = len(_engine.Die.sides) ** n_dice
@@ -33,7 +53,9 @@ def main (argv = []):
         scores,
         columns = _pd.Index(list(s.name for s in _engine.Slot), name = 'Slot')
     )
-    total_scores = scores.sum(axis = 0)
+    scores_sum = scores.sum(axis = 0)
+    scores_stats = scores.describe().T.copy()
+    scores_stats['std'] = scores.std(axis = 0, ddof = 0)
 
     ## *** CALCULATE EXPECTED OUTCOMES ***
 
@@ -54,7 +76,7 @@ def main (argv = []):
     aux_column = _engine.FreeColumn(check_input = False)
     for s in _engine.Column.fillable_slots:
         aux_column.scores[s] = _fractions.Fraction(
-            int(total_scores[s]),
+            int(scores_sum[s]),
             n_outcomes
         )
     aux_column.update_auto_slots()
@@ -67,11 +89,31 @@ def main (argv = []):
         expectations.loc[s, 'Numerator'] = f.numerator
         expectations.loc[s, 'Denominator'] = f.denominator
 
+    ## *** PLOT HISTOGRAMS ***
+
+    hist_fig, hist_ax = _plt.subplots(
+        sharex = False,
+        sharey = False,
+        **_nice_subplots_grid(len(_engine.Slot))
+    )
+    ax_order = 'F' if hist_ax.ndim > 1 and _np.isfortran(hist_ax) else 'C'
+
+    for s in _engine.Slot:
+        ind = _np.unravel_index(s, hist_ax.shape, order = ax_order)
+        _sns.histplot(
+            scores[s.name],
+            stat = 'density',
+            kde = True,
+            ax = hist_ax[ind]
+        )
+
     ## *** OUTPUT RESULTS ***
 
-    print(scores.describe().T)
+    print(scores_stats)
     print('')
     print(expectations)
+
+    _plt.show()
 
     return 0
 
