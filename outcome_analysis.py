@@ -57,7 +57,10 @@ def main (argv = []):
     )
     scores_sum = scores.sum(axis = 0)
     scores_stats = scores.describe().T.copy()
-    scores_stats['std'] = scores.std(axis = 0, ddof = 0)
+    scores_stats['std'] = scores.std(axis = 0, ddof = 0) # <- use population
+                                                         # SD since all
+                                                         # possible outcomes
+                                                         # are considered
 
     ## *** CALCULATE EXPECTED OUTCOMES ***
 
