@@ -42,7 +42,9 @@ def main (argv = []):
 
     scores = _np.zeros((n_outcomes, len(_engine.Slot)), dtype = _np.int32)
 
-    for i, o in enumerate(_itertools.product(_engine.Die.sides, repeat = n_dice)):
+    for i, o in enumerate(
+        _itertools.product(_engine.Die.sides, repeat = n_dice)
+    ):
         aux_column = BoostedFreeColumn(check_input = False)
         for s in _engine.Column.fillable_slots:
             aux_column.fill_slot(s, o)
