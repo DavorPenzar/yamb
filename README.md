@@ -104,12 +104,12 @@ Each column has its own rules regarding the order of filling slots, but scoring 
 | **Collections** | Sum of *two pairs*, *straight*, ..., *yamb*               | [two pairs] + [straight] + ... + [yamb]         |
 | **Total**       | Final score                                               | [sum] + [difference] + [collections]            |
 
-At the end of each turn the player must choose one of the thirteen non-bold slots to fill in; the other four bold slots are only used to calculate the player's final score. If a player chooses to fill in a slot, but the dice do not show valid values for the slot, the slot is filled with a score of 0 (e. g. if the dice do not all show the same value, but the player chooses to fill in *yamb*, they fill the slot with a score of 0). A slot filled with a score of 0 is still considered filled and cannot be overwritten later.
+At the end of each turn the player must choose one of the thirteen non-bold slots to fill in; the other four bold slots are only used to calculate the player's final score. If the player chooses to fill in a slot, but the dice do not show valid values for the slot, the slot is filled with a score of 0 (e. g. if the dice do not all show the same value, but the player chooses to fill in *yamb*, they fill the slot with a score of 0). A slot filled with a score of 0 is still considered filled and cannot be overwritten later.
 
 In a standard game of yamb, the player has a table of 4 columns:
 
 1. down &ndash; the column is filled from top to bottom as in the previous table (e. g. *six* cannot be filled until all other numbers are filled),
-2. up &ndash; the column is filled from bottom to top as in the previous table (e. g. *full house* cannot be filled until *yamb* and *carriage* are filled,
+2. up &ndash; the column is filled from bottom to top as in the previous table (e. g. *full house* cannot be filled until *yamb* and *carriage* are filled),
 3. free &ndash; the column is filled freely, in no specific order,
 4. announce &ndash; the player must announce the slot after the first roll (and they must fill this column at that slot at the end of the turn).
 
@@ -121,6 +121,6 @@ Popular additional and/or alternative columns are:
 3. late announce &ndash; the slot is announced after the second roll,
 5. counter-announce (only available when played multiplayer) &ndash; the player must fill the same slot that the player before him has announced in their previous turn.
 
-The game ends when all columns are completely filled. The player's final score is then calculated as the sum of *totals* per columns. The higher the final score the better (as one can conclude from the rules of scoring slots). If played multiplayer, the plaer with the highest score wins.
+The game ends when all columns are completely filled. The player's final score is then calculated as the sum of *totals* per columns. The higher the final score the better (as one can conclude from the rules of scoring slots). If played multiplayer, the player with the highest score wins.
 
 All four standard columns are implemented in this project. Of the alternative columns, the *up-down*, *hand* and *late announce* columns are also implemented. To implement the *counter-announce* column, a custom back-channel communication amongst the players must be implemented.
