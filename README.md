@@ -85,7 +85,7 @@ The game is played using 5 dice. In each turn, the player may roll the dice no m
 Each column has its own rules regarding the order of filling slots, but scoring is common to all columns. Slots, descriptions and scores are presented in the table below (see below table why some slots are printed in bold):
 
 | Slot            | Description                                               | Scoring                                         |
----------------------------------------------------------------------------------------------------------------------------------
+|-----------------|-----------------------------------------------------------|-------------------------------------------------|
 | One             | Sum of ones                                               | Sum of dice showing ones                        |
 | Two             | Sum of twos                                               | Sum of dice showing twos                        |
 | Three           | Sum of threes                                             | Sum of dice showing threes                      |
