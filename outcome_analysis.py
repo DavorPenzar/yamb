@@ -3,7 +3,6 @@
 # -*- coding: utf-8 -*-
 
 import fractions as _fractions
-from genericpath import isfile
 import itertools as _itertools
 import math as _math
 import sys as _sys
