@@ -84,25 +84,25 @@ The game is played using 5 dice. In each turn, the player may roll the dice no m
 
 Each column has its own rules regarding the order of filling slots, but scoring is common to all columns. Slots, descriptions and scores are presented in the table below (see below table why some slots are printed in bold):
 
-| Slot            | Description                                               | Scoring                                         |
-|-----------------|-----------------------------------------------------------|-------------------------------------------------|
-| One             | Sum of ones                                               | Sum of dice showing ones                        |
-| Two             | Sum of twos                                               | Sum of dice showing twos                        |
-| Three           | Sum of threes                                             | Sum of dice showing threes                      |
-| Four            | Sum of fours                                              | Sum of dice showing fours                       |
-| Five            | Sum of fives                                              | Sum of dice showing fives                       |
-| Six             | Sum of sixes                                              | Sum of dice showing sixes                       |
-| **Sum**         | Sum of *one*, *two*, ..., *six*                           | [one] + [two] + ... + [six]; if &ge; 60, add 30 |
-| Min             | Minimum                                                   | Sum of all 5 dice                               |
-| Max             | Maximum                                                   | Sum of all 5 dice                               |
-| **Difference**  | Difference between *max* and *min* times ones             | [one] &times; ([max] - [min])                   |
-| Two pairs       | Two distinct values appearing at least twice              | Sum of the 4 dice making the pairs + 10         |
-| Straight        | 5 consecutive values (1, 2, ..., 5 or 2, 3, ..., 6)       | 35 if lower (to 5), 45 if upper (to 6)          |
-| Full house      | One value appearing thrice, another value appearing twice | Sum of all 5 dice + 30                          |
-| Carriage        | One value appearing at least four times                   | Sum of the 4 dice making the carriage + 40      |
-| Yamb            | All five dice showing the same value                      | Sum of all 5 dice + 50                          |
-| **Collections** | Sum of *two pairs*, *straight*, ..., *yamb*               | [two pairs] + [straight] + ... + [yamb]         |
-| **Total**       | Final score                                               | [sum] + [difference] + [collections]            |
+| Slot            | Description                                                           | Scoring                                              |
+|-----------------|-----------------------------------------------------------------------|------------------------------------------------------|
+| One             | Sum of ones                                                           | Sum of dice showing ones                             |
+| Two             | Sum of twos                                                           | Sum of dice showing twos                             |
+| Three           | Sum of threes                                                         | Sum of dice showing threes                           |
+| Four            | Sum of fours                                                          | Sum of dice showing fours                            |
+| Five            | Sum of fives                                                          | Sum of dice showing fives                            |
+| Six             | Sum of sixes                                                          | Sum of dice showing sixes                            |
+| **Sum**         | Sum of *one*, *two*, &hellip;, *six*                                  | [one] + [two] + &hellip; + [six]; if &ge; 60, add 30 |
+| Min             | Minimum                                                               | Sum of all 5 dice                                    |
+| Max             | Maximum                                                               | Sum of all 5 dice                                    |
+| **Difference**  | Difference between *max* and *min* times ones                         | [one] &times; ([max] - [min])                        |
+| Two pairs       | Two distinct values appearing at least twice                          | Sum of the 4 dice making the pairs + 10              |
+| Straight        | 5 consecutive values (1, 2, &hellip;, 5 or 2, 3, &hellip;, 6)         | 35 if lower (to 5), 45 if upper (to 6)               |
+| Full house      | One value appearing thrice, another (different) value appearing twice | Sum of all 5 dice + 30                               |
+| Carriage        | One value appearing at least four times                               | Sum of the 4 dice making the carriage + 40           |
+| Yamb            | All five dice showing the same value                                  | Sum of all 5 dice + 50                               |
+| **Collections** | Sum of *two pairs*, *straight*, &hellip;, *yamb*                      | [two pairs] + [straight] + &hellip; + [yamb]         |
+| **Total**       | Final score                                                           | [sum] + [difference] + [collections]                 |
 
 At the end of each turn the player must choose one of the thirteen non-bold slots to fill in; the other four bold slots are only used to calculate the player's final score. If the player chooses to fill in a slot, but the dice do not show valid values for the slot, the slot is filled with a score of 0 (e. g. if the dice do not all show the same value, but the player chooses to fill in *yamb*, they fill the slot with a score of 0). A slot filled with a score of 0 is still considered filled and cannot be overwritten later.
 
