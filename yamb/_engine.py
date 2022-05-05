@@ -481,12 +481,6 @@ method.
     )
     slots = fillable_slots | auto_slots
 
-    _number_slots_array = None
-    _sum_slots_array = None
-    _collection_slots_array = None
-    _fillable_slots_array = None
-    _auto_slots_array = None
-    _slots_array = None
     if _np is not None:
         _number_slots_array = _np.array(
             list(sorted(number_slots)),
@@ -518,27 +512,7 @@ method.
         _fillable_slots_array.flags.writeable = False
         _auto_slots_array.flags.writeable = False
         _slots_array.flags.writeable = False
-    else:
-        del _number_slots_array
-        del _sum_slots_array
-        del _collection_slots_array
-        del _fillable_slots_array
-        del _auto_slots_array
-        del _slots_array
 
-
-    _number_slots_index = None
-    _sum_slots_index = None
-    _collection_slots_index = None
-    _fillable_slots_index = None
-    _auto_slots_index = None
-    _slots_index = None
-    _number_slots_str_index = None
-    _sum_slots_str_index = None
-    _collection_slots_str_index = None
-    _fillable_slots_str_index = None
-    _auto_slots_str_index = None
-    _slots_str_index = None
     if _pd is not None:
         _pd_1_or_higher = \
             _np.lib.NumpyVersion(_pd.__version__) >= _np.lib.NumpyVersion('1.0.0')
@@ -605,19 +579,6 @@ method.
         )
         del _pd_1_or_higher
         del _str_dtype
-    else:
-        del _number_slots_index
-        del _sum_slots_index
-        del _collection_slots_index
-        del _fillable_slots_index
-        del _auto_slots_index
-        del _slots_index
-        del _number_slots_str_index
-        del _sum_slots_str_index
-        del _collection_slots_str_index
-        del _fillable_slots_str_index
-        del _auto_slots_str_index
-        del _slots_str_index
 
     lambda_score = None
 
@@ -933,6 +894,7 @@ its values.
         instance = super(Column, cls).__new__(cls)
 
         instance._type = None
+        instance._rollable = None
         instance._locked = None
         instance._name = None
         instance._check_input = None
@@ -952,6 +914,7 @@ its values.
         if not isinstance(check_input, _AnyBoolean):
             raise TypeError("Check input flag must be a boolean value.")
 
+        self._rollable = True
         self._locked = False
         self._name = str(
             getattr(self._type, '__name__', 'Column') if name is None
@@ -963,12 +926,72 @@ its values.
         self._available_slots = None
         self._next_available_slots = None
 
+    def disallow_rolls (self):
+        """Disallows next rolls.
+
+When a column forbids next rolls, it must be immediately filled.  Usually the
+column would be locked when next rolls are disallowed.  This is primarily
+intended for the "from-hand" column.
+
+Raises
+------
+TypeError
+    If the column cannot disallow next rolls.
+
+See Also
+--- ----
+allow_rols : Method that allows next rolls
+can_roll : Method that checks if next rolls are allowed
+lock : Method that locks the column
+unlock : Method that unlocks the column
+is_locked : Method that checks if the column is locked
+
+Notes
+-----
+By default, this method raises a `TypeError`.  Override this method if the
+column should be lockable/unlockable by setting the `_rollable` instance
+variable to ``False``.
+"""
+        raise TypeError(
+            "{column} cannot disallow rolls.".format(column = self._type)
+        )
+
+    def allow_rolls (self):
+        """Allows next rolls.
+
+When a column allows next rolls, it is no longer obligatory to immediately
+fill it.  Usually the column would be unlocked when next rolls are allowed.
+This is primarily intended for the "from-hand" column.
+
+Raises
+------
+TypeError
+    If the column cannot allow next rolls.
+
+See Also
+--- ----
+disallow_rols : Method that disallows next rolls
+can_roll : Method that checks if next rolls are allowed
+lock : Method that locks the column
+unlock : Method that unlocks the column
+is_locked : Method that checks if the column is locked
+
+Notes
+-----
+By default, this method raises a `TypeError`.  Override this method if the
+column should be lockable/unlockable by setting the `_rollable` instance
+variable to ``True``.
+"""
+        raise TypeError(
+            "{column} cannot allow rolls.".format(column = self._type)
+        )
+
     def lock (self):
         """Locks the column.
 
 When a column is locked, it must be filled at the end of a turn (therefore at
 most a single column may be locked in a turn).  This is primarily intended for
-the announced column, but may be used for custom columns as well.
+the announced column.
 
 Raises
 ------
@@ -994,8 +1017,7 @@ variable to ``True``.
         """Unlocks the column.
 
 When a column is unlocked, it no longer needs to be filled at the end of a
-turn.  This is primarily intended for the announced column, but may be used
-for custom columns as well.
+turn.  This is primarily intended for the announced column.
 
 Raises
 ------
@@ -1017,13 +1039,33 @@ variable to ``False``.
             "{column} cannot be unlocked.".format(column = self._type)
         )
 
+    def can_roll (self):
+        """Checks if the next dice roll is possible.
+
+If a roll is not possible, the player should immediately proceed to filling
+the slot.  This is primarily intended for the "from-hand" column.
+
+Returns
+-------
+bool
+    ``True`` if the next dice roll is allowed, ``False`` otherwise.
+
+See Also
+--- ----
+lock : Method that locks the column
+unlock : Method that unlocks the column
+"""
+        if self._check_input:
+            roll = self._type._ensure_roll_index(roll)
+
+        return self._rollable
+
     def is_locked (self):
         """Checks if the column is locked.
 
 When a column is unlocked, it no longer needs to be filled at the end of a
 turn.  When a column is unlocked, it no longer needs to be filled at the end
-of a turn.  This is primarily intended for the announced column, but may be
-used for custom columns as well.
+of a turn.  This is primarily intended for the announced column.
 
 Returns
 -------
@@ -1762,6 +1804,15 @@ order : OrderedColumn.Order or integer or { "down", "mixed", "up" }
     If ``"down"``, the column is filled from top to bottom; if ``"up"``, it is
     filled from bottom to top.  A `"mixed"` column is filled in either way, but
     does not allow random access such as the free or the announced column.
+
+name : string, optional
+    Name of the column.  If not provided, the name is inferred from the
+    column's type.
+
+check_input : boolean, default = True
+    If ``True``, arguments are checked in all methods before conducting any
+    business logic; otherwise all arguments are assumed to be valid (by type
+    and value) and legal (by game and column rules).
 """
 
     @_enum.unique
@@ -1880,22 +1931,73 @@ order)."""
         return self.is_slot_available(slot)
 
 class AnnouncedColumn (Column):
-    """Represents a column that requires an announcement before filling."""
+    """Represents a column that requires an announcement before filling.
+
+Parameters
+----------
+after_roll : integer, default = 1
+    One.indexed roll index after which the announcement must be made.
+
+immediately_fill : boolean, default = False
+    If ``True``, next rolls after an announcement are disallowed and the
+    column must be immediately filled.
+
+name : string, optional
+    Name of the column.  If not provided, the name is inferred from the
+    column's type.
+
+check_input : boolean, default = True
+    If ``True``, arguments are checked in all methods before conducting any
+    business logic; otherwise all arguments are assumed to be valid (by type
+    and value) and legal (by game and column rules).
+"""
 
     def __new__ (cls, *args, **kwargs):
         instance = super(AnnouncedColumn, cls).__new__(cls)
 
+        instance._after_roll = None
+        instance._immediately_fill = None
         instance._announcement = None
 
         return instance
 
-    def __init__ (self, name = None, check_input = True):
+    def __init__ (
+        self,
+        after_roll = 1,
+        immediately_fill = False,
+        name = None,
+        check_input = True
+    ):
         super(AnnouncedColumn, self).__init__(
             name = name,
             check_input = check_input
         )
 
+        if not isinstance(after_roll, _AnyInteger):
+            raise TypeError("After roll index be an integral value.")
+        if after_roll < 0:
+            raise ValueError(
+                "After roll index must be greater than or equal to 0."
+            )
+
+        if not isinstance(immediately_fill, _AnyBoolean):
+            raise TypeError("Immediately fill flag must be a boolean value.")
+
+        self._after_roll = int(after_roll)
+        self._immediately_fill = bool(immediately_fill)
         self._announcement = None
+
+    def disallow_rolls (self):
+        if self._check_input and not self._immediately_fill:
+            raise RuntimeError("Cannot disallow rolls.")
+
+        self._rollable = False
+
+    def allow_rolls (self):
+        if self._check_input and not self._immediately_fill:
+            raise RuntimeError("Cannot allow rolls.")
+
+        self._rollable = True
 
     def lock (self):
         self._locked = True
@@ -1927,7 +2029,7 @@ class AnnouncedColumn (Column):
         if self._check_input:
             roll = self._type._ensure_roll_index(roll)
 
-        if roll == 1:
+        if roll == self._after_roll:
             return ((), { 'announcement': Slot })
 
         return None
@@ -1935,7 +2037,8 @@ class AnnouncedColumn (Column):
     def announce (self, slot):
         """Announce a slot that will be filled in this column.
 
-Calling this method also locks the column.
+Calling this method also locks the column.  Also, if the column must be
+immediately filled after the announcement, next rolls are disallowed.
 
 Parameters
 ----------
@@ -1959,6 +2062,9 @@ supress : Method that suppresses an announcement
 lock : Method that locks the column
 unlock : Method that unlocks the column
 is_locked : Method that checks if the column is locked
+disallow_rols : Method that disallows next rolls
+allow_rols : Method that allows next rolls
+can_roll : Method that checks if next rolls are allowed
 
 Notes
 -----
@@ -1990,6 +2096,8 @@ than a single integer.
         self._available_slots = None
 
         self.lock()
+        if self._immediately_fill:
+            self.disallow_rolls()
 
     def pre_filling_action (self, roll, *args, **kwargs):
         if roll == 1:
@@ -2004,7 +2112,8 @@ than a single integer.
     def suppress (self):
         """Suppresses the previous announcement.
 
-This method also unlocks the column.
+This method also unlocks the column.  Also, if the column must be immediately
+filled after an announcement, next rolls are disallowed.
 
 Raises
 ------
@@ -2013,10 +2122,13 @@ RuntimeError
 
 See Also
 --- ----
-supress : Method that announces filling a column
+announce : Method that announces filling a column
 lock : Method that locks the column
 unlock : Method that unlocks the column
 is_locked : Method that checks if the column is locked
+disallow_rols : Method that disallows next rolls
+allow_rols : Method that allows next rolls
+can_roll : Method that checks if next rolls are allowed
 """
         if self._announcement is None:
             raise RuntimeError("No slot is announced yet.")
@@ -2027,6 +2139,8 @@ is_locked : Method that checks if the column is locked
         self._next_available_slots = None
 
         self.unlock()
+        if self._immediately_fill:
+            self.allow_rolls()
 
     def post_filling_action (self, *args, **kwargs):
         self.suppress()
@@ -2136,6 +2250,11 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
 
     def which_column_is_locked (self):
         return self._locked
+
+    def can_roll (self):
+        return \
+            True if self._locked is None \
+                else self._columns[self._locked].can_roll()
 
     def start_turn (self):
         self._locked = None
@@ -2258,3 +2377,7 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
     @property
     def results (self):
         return self._results
+
+class Player (object if _sys.version_info.major < 3 else _abc.ABC):
+    if _sys.version_info.major < 3:
+        __metaclass__ = _abc.ABCMeta

@@ -19,7 +19,7 @@ def _get_requirements (requirements):
     for j, a in enumerate(requirements[0]):
         args[j] = a(int(input().strip()))
     for k, a in requirements[1].items():
-        kwargs[k] = a(int(input(f"{k} = ").strip()))
+        kwargs[k] = a(int(input(f"{k:} = ").strip()))
 
     args = tuple(args)
 
@@ -38,6 +38,9 @@ def main (argv = []):
         print(yamb.to_pandas(str_index = True))
 
         for roll in range(4):
+            if not yamb.can_roll():
+                break
+
             results, requirements = yamb.roll_dice(roll, replace)
 
             if roll:
@@ -65,7 +68,7 @@ def main (argv = []):
                 if not my_replace:
                     break
 
-                replace = list(((r + 1) in my_replace) for r in range(5))
+                replace = list(((r + 1) in my_replace) for r in range(yamb.n_dice))
 
         column = yamb.which_column_is_locked()
         if column is None:
