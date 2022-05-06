@@ -51,6 +51,8 @@ if _np.lib.NumpyVersion(_pd.__version__) < _np.lib.NumpyVersion('1.0.0'):
 
 from .._types import \
     AnyHashable as _AnyHashable, \
+    AnyIterable as _AnyIterable, \
+    AnySequence as _AnySequence, \
     AnyString as _AnyString, \
     AnyNumber as _AnyNumber, \
     AnyInteger as _AnyInteger, \
@@ -59,7 +61,8 @@ from .._types import \
 from .. import \
     Die as _Die, \
     Slot as _Slot, \
-    Column as _Column
+    Column as _Column, \
+    Yamb as _Yamb
 
 def boost_die (cls = _Die, class_name = None):
     """Boosts a die class by enforcing using the NumPy back-end.
@@ -322,3 +325,41 @@ integers in a standard game with 5 dice.
             return self._slots
 
     return BoostedColumn
+
+def boost_yamb (cls = _Yamb, class_name = None):
+    if not (isinstance(cls, type) and issubclass(cls, _Yamb)):
+        raise TypeError("Base class must be a yamb subclass.")
+    if not (class_name is None or isinstance(class_name, _AnyString)):
+        raise TypeError("Class name must be a string.")
+
+    if class_name is not None:
+        class_name = str(class_name)
+
+    class BoostedYamb (cls):
+        if class_name is not None:
+            __name__ = class_name
+
+        __doc__ = cls.__doc__
+
+        boosted = True
+
+        @classmethod
+        def _replace_results (cls, old_results, new_results, replace):
+            if not isinstance(old_results, _np.ndarray):
+                old_results = _np.asanyarray(old_results)
+
+            old_results[replace] = new_results
+
+        @classmethod
+        def _new_empty_results (cls, n):
+            if isinstance(n, _AnyIterable):
+                if not isinstance(n, _AnySequence):
+                    n = list(n)
+                n = _np.asanyarray(n)
+                n.fill(0)
+            else:
+                n = _np.zeros(n, dtype = _np.int32)
+
+            return n
+
+    return BoostedYamb
