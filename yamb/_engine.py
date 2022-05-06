@@ -482,101 +482,103 @@ method.
     slots = fillable_slots | auto_slots
 
     if _np is not None:
-        _number_slots_array = _np.array(
+        number_slots_array = _np.array(
             list(sorted(number_slots)),
             dtype = _np.int32
         )
-        _sum_slots_array = _np.array(
+        sum_slots_array = _np.array(
             list(sorted(sum_slots)),
             dtype = _np.int32
         )
-        _collection_slots_array = _np.array(
+        collection_slots_array = _np.array(
             list(sorted(collection_slots)),
             dtype = _np.int32
         )
-        _fillable_slots_array = _np.array(
+        fillable_slots_array = _np.array(
             list(sorted(fillable_slots)),
             dtype = _np.int32
         )
-        _auto_slots_array = _np.array(
+        auto_slots_array = _np.array(
             list(sorted(auto_slots)),
             dtype = _np.int32
         )
-        _slots_array = _np.array(
+        slots_array = _np.array(
             list(sorted(slots)),
             dtype = _np.int32
         )
-        _number_slots_array.flags.writeable = False
-        _sum_slots_array.flags.writeable = False
-        _collection_slots_array.flags.writeable = False
-        _fillable_slots_array.flags.writeable = False
-        _auto_slots_array.flags.writeable = False
-        _slots_array.flags.writeable = False
+        number_slots_array.flags.writeable = False
+        sum_slots_array.flags.writeable = False
+        collection_slots_array.flags.writeable = False
+        fillable_slots_array.flags.writeable = False
+        auto_slots_array.flags.writeable = False
+        slots_array.flags.writeable = False
 
     if _pd is not None:
         _pd_1_or_higher = \
             _np.lib.NumpyVersion(_pd.__version__) >= _np.lib.NumpyVersion('1.0.0')
         _str_dtype = _pd.StringDtype() if _pd_1_or_higher else str
-        _number_slots_index = _pd.Index(
+
+        number_slots_index = _pd.Index(
             list(sorted(number_slots)),
             dtype = int,
             name = 'Slot'
         )
-        _sum_slots_index = _pd.Index(
+        sum_slots_index = _pd.Index(
             list(sorted(sum_slots)),
             dtype = int,
             name = 'Slot'
         )
-        _collection_slots_index = _pd.Index(
+        collection_slots_index = _pd.Index(
             list(sorted(collection_slots)),
             dtype = int,
             name = 'Slot'
         )
-        _fillable_slots_index = _pd.Index(
+        fillable_slots_index = _pd.Index(
             list(sorted(fillable_slots)),
             dtype = int,
             name = 'Slot'
         )
-        _auto_slots_index = _pd.Index(
+        auto_slots_index = _pd.Index(
             list(sorted(auto_slots)),
             dtype = int,
             name = 'Slot'
         )
-        _slots_index = _pd.Index(
+        slots_index = _pd.Index(
             list(sorted(slots)),
             dtype = int,
             name = 'Slot'
         )
-        _number_slots_str_index = _pd.Index(
+        number_slots_str_index = _pd.Index(
             list(s.name for s in sorted(number_slots)),
             dtype = _str_dtype,
             name = 'Slot'
         )
-        _sum_slots_str_index = _pd.Index(
+        sum_slots_str_index = _pd.Index(
             list(s.name for s in sorted(sum_slots)),
             dtype = _str_dtype,
             name = 'Slot'
         )
-        _collection_slots_str_index = _pd.Index(
+        collection_slots_str_index = _pd.Index(
             list(s.name for s in sorted(collection_slots)),
             dtype = _str_dtype,
             name = 'Slot'
         )
-        _fillable_slots_str_index = _pd.Index(
+        fillable_slots_str_index = _pd.Index(
             list(s.name for s in sorted(fillable_slots)),
             dtype = _str_dtype,
             name = 'Slot'
         )
-        _auto_slots_str_index = _pd.Index(
+        auto_slots_str_index = _pd.Index(
             list(s.name for s in sorted(auto_slots)),
             dtype = _str_dtype,
             name = 'Slot'
         )
-        _slots_str_index = _pd.Index(
+        slots_str_index = _pd.Index(
             list(s.name for s in sorted(slots)),
             dtype = _str_dtype,
             name = 'Slot'
         )
+
         del _pd_1_or_higher
         del _str_dtype
 
@@ -1684,8 +1686,8 @@ this method as well, but a cautionary dependency check shall be done first.
         return _pd.Series(
             self.__array__(),
             index = \
-                self._type._slots_str_index if str_index \
-                    else self._type._slots_index,
+                self._type.slots_str_index if str_index \
+                    else self._type.slots_index,
             name = self._name
         )
 

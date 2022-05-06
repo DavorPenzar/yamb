@@ -297,7 +297,7 @@ integers in a standard game with 5 dice.
                 available_slots = available_slots[
                     _np.isin(
                         available_slots,
-                        self._type._fillable_slots_array,
+                        self._type.fillable_slots_array,
                         assume_unique = True
                     )
                 ]
@@ -316,8 +316,8 @@ integers in a standard game with 5 dice.
             return _pd.Series(
                 self.__array__(),
                 index = \
-                    self._type._slots_str_index if str_index \
-                        else self._type._slots_index,
+                    self._type.slots_str_index if str_index \
+                        else self._type.slots_index,
                 name = self._name
             )
 
