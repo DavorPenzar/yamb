@@ -2679,18 +2679,24 @@ class Player (object if _sys.version_info.major < 3 else _abc.ABC):
                             requirements
                         )
                         if column is not None:
-                            args, kwargs = self.set_pre_filling_requirements(
-                                game.columns,
-                                column,
-                                game.roll_index,
-                                game.results,
-                                requirements[column]
-                            )
-                            game.make_pre_filling_action(
-                                column,
-                                *args,
-                                **kwargs
-                            )
+                            requirements = requirements[column]
+                            if requirements:
+                                if isinstance(requirements, _AnyBoolean):
+                                    game.make_pre_filling_action(column)
+                                else:
+                                    args, kwargs = \
+                                        self.set_pre_filling_requirements(
+                                            game.columns,
+                                            column,
+                                            game.roll_index,
+                                            game.results,
+                                            requirements
+                                        )
+                                    game.make_pre_filling_action(
+                                        column,
+                                        *args,
+                                        **kwargs
+                                    )
 
                 if game.can_roll():
                     if game.roll_index:
@@ -2724,13 +2730,16 @@ class Player (object if _sys.version_info.major < 3 else _abc.ABC):
 
             requirements = game.get_post_filling_requirements(column)
             if requirements:
-                args, kwargs = self.set_post_filling_requirements(
-                    game.columns,
-                    column,
-                    slot,
-                    requirements
-                )
-                game.make_post_filling_action(column, *args, **kwargs)
+                if isinstance(requirements, _AnyBoolean):
+                    game.make_post_filling_action(column)
+                else:
+                    args, kwargs = self.set_post_filling_requirements(
+                        game.columns,
+                        column,
+                        slot,
+                        requirements
+                    )
+                    game.make_post_filling_action(column, *args, **kwargs)
 
             if self._update_auto_slots and not i % self._update_auto_slots:
                 game.update_auto_slots()
