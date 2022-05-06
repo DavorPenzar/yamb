@@ -10,92 +10,133 @@ import pandas as _pd
 
 import yamb as _engine
 
-def _get_requirements (requirements):
-    if isinstance(requirements, (bool, _np.bool_)) and requirements == True:
-        return ((), {})
+class _SimpleConsolePlayer (_engine.Player):
+    @classmethod
+    def _get_requirements (cls, requirements):
+        if (
+            isinstance(requirements, (bool, _np.bool_)) and
+            requirements == True
+        ):
+            return ((), {})
 
-    args = list(None for _ in requirements[0])
-    kwargs = dict()
-    for j, a in enumerate(requirements[0]):
-        args[j] = a(int(input().strip()))
-    for k, a in requirements[1].items():
-        kwargs[k] = a(int(input(f"{k:} = ").strip()))
+        args = list(None for _ in requirements[0])
+        kwargs = dict()
+        for j, a in enumerate(requirements[0]):
+            args[j] = a(int(input().strip()))
+        for k, a in requirements[1].items():
+            kwargs[k] = a(int(input(f"{k:s} = ").strip()))
 
-    args = tuple(args)
+        args = tuple(args)
 
-    return (args, kwargs)
+        return (args, kwargs)
 
-def main (argv = []):
-    yamb = _engine.Yamb(
-        random_state = _engine.FiniteDie(
-            random_state = _np.random.default_rng()
+    def observe_roll_results (
+        self,
+        columns,
+        locked_column_index,
+        roll,
+        results
+    ):
+        if roll:
+            print(f"Results: {list(results)}")
+        else:
+            print(
+                _pd.concat(list(c.to_pandas(True) for c in columns), axis = 1)
+            )
+
+    def choose_pre_filling_action_column (
+        self,
+        columns,
+        roll,
+        results,
+        requirements
+    ):
+        print(f"Requirements: {requirements}")
+
+        column = None
+
+        free_columns = list(
+            c for c in range(len(columns)) if not columns[c].is_full(True)
         )
-    )
+        if len(free_columns) == 1:
+            column = free_columns[0]
+        else:
+            column = input('Require for column: ').strip()
+            if column:
+                column = int(column) - 1
+            else:
+                column = None
 
-    while not yamb.is_full():
+        return column
+
+    def set_pre_filling_requirements (
+        self,
+        columns,
+        column_index,
+        roll,
+        results,
+        requirements
+    ):
+        return self._type._get_requirements(requirements)
+
+    def choose_replacements (
+        self,
+        columns,
+        locked_column_index,
+        roll,
+        results
+    ):
         replace = None
 
-        print(yamb.to_pandas(str_index = True))
+        my_replace = input('Replace: ')
+        if my_replace:
+            my_replace = frozenset(int(r.strip()) for r in my_replace.split(','))
+        if my_replace:
+            replace = list(((r + 1) in my_replace) for r in range(len(results)))
 
-        for roll in range(4):
-            if not yamb.can_roll():
-                break
+        return replace
 
-            results, requirements = yamb.roll_dice(roll, replace)
+    def choose_column_to_fill (self, columns, results):
+        column = None
 
-            if roll:
-                print(f"Results: {repr(results)}")
+        free_columns = list(
+            c for c in range(len(columns)) if not columns[c].is_full()
+        )
+        if len(free_columns) == 1:
+            column = free_columns[0]
+        else:
+            column = int(input('Enter in column: ').strip()) - 1
 
-            if any(r for r in requirements):
-                print(f"Requirements: {repr(requirements)}")
+        return column
 
-                column = None
-                free_columns = list(c for c in range(len(yamb)) if not yamb[c].is_full())
-                if len(free_columns) == 1:
-                    column = free_columns[0]
-                else:
-                    column = input('Require for column: ').strip()
-                if column:
-                    column = int(column) - 1
-                    if requirements[column]:
-                        args, kwargs = _get_requirements(requirements[column])
-                        yamb.make_pre_filling_action(column, roll, *args, **kwargs)
-
-            if roll and roll != 3:
-                my_replace = input('Replace: ')
-                if my_replace:
-                    my_replace = frozenset(int(r.strip()) for r in my_replace.split(','))
-                if not my_replace:
-                    break
-
-                replace = list(((r + 1) in my_replace) for r in range(yamb.n_dice))
-
-        column = yamb.which_column_is_locked()
-        if column is None:
-            free_columns = list(c for c in range(len(yamb)) if not yamb[c].is_full())
-            if len(free_columns) == 1:
-                column = free_columns[0]
-            else:
-                column = int(input('Enter in column: ').strip()) - 1
-
-        next_slots = yamb[column].get_next_available_slots()
+    def choose_slot_to_fill (self, columns, column_index, results):
         slot = None
+
+        next_slots = columns[column_index].get_next_available_slots()
         if len(next_slots) == 1:
             slot = next_slots[0]
         else:
-            slot = int(input('In slot: ').strip())
+            slot = int(input('Enter in slot: ').strip())
 
-        requirements = yamb.end_turn(column, slot)
-        if requirements:
-            args, kwargs = _get_requirements(requirements)
-            yamb.make_post_filling_action(column, *args, **kwargs)
+        return slot
 
-        yamb.update_auto_slots()
+    def set_post_filling_requirements (
+        self,
+        columns,
+        column_index,
+        slot,
+        requirements
+    ):
+        return self._type._get_requirements(requirements)
 
-        print('')
+def main (argv = []):
+    player = _SimpleConsolePlayer(update_auto_slots = True)
 
-    print(yamb.to_pandas(str_index = True))
-    print(f"Final score: {sum(yamb[c].TOTAL for c in range(len(yamb)))}")
+    game = player.play()
+
+    print('')
+
+    print(f"Final score: {game.get_total_score()}")
 
     return 0
 

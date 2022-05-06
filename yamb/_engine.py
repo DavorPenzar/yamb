@@ -696,6 +696,8 @@ converted to a `tuple` or a `list`.
         if not isinstance(results, _AnySequence):
             results = tuple(results)
         if _np is not None and isinstance(results, _np.ndarray):
+            if not _np.ndim == 1:
+                raise ValueError("Results must be a 1-dimensional sequence.")
             if not _np.issubdtype(results.dtype, _np.integer):
                 raise TypeError("Results must be integers.")
             if not _np.all((results >= 1) & (results <= 6)):
@@ -894,10 +896,10 @@ its values.
         instance = super(Column, cls).__new__(cls)
 
         instance._type = None
+        instance._check_input = None
+        instance._name = None
         instance._rollable = None
         instance._locked = None
-        instance._name = None
-        instance._check_input = None
         instance._slots = None
         instance._available_slots = None
         instance._next_available_slots = None
@@ -909,18 +911,20 @@ its values.
 
         self._type = self.__class__
 
-        if not (name is None or isinstance(name, _AnyString)):
-            raise TypeError("Column name must be a string value.")
         if not isinstance(check_input, _AnyBoolean):
             raise TypeError("Check input flag must be a boolean value.")
+        self._check_input = bool(check_input)
 
-        self._rollable = True
-        self._locked = False
+        if not (name is None or isinstance(name, _AnyString)):
+            raise TypeError("Column name must be a string value.")
         self._name = str(
             getattr(self._type, '__name__', 'Column') if name is None
                 else name
         )
-        self._check_input = bool(check_input)
+
+        self._rollable = True
+        self._locked = False
+
         self._slots = self._type._new_empty_scores()
 
         self._available_slots = None
@@ -1055,9 +1059,6 @@ See Also
 lock : Method that locks the column
 unlock : Method that unlocks the column
 """
-        if self._check_input:
-            roll = self._type._ensure_roll_index(roll)
-
         return self._rollable
 
     def is_locked (self):
@@ -1760,12 +1761,6 @@ than a single integer.
         return self._name
 
     @property
-    def check_input (self):
-        """Flag indicating whether or not method parameters should be \
-checked."""
-        return self._check_input
-
-    @property
     def scores (self):
         """The list of scores over slots.
 
@@ -1790,6 +1785,12 @@ of cheating when done during a game.  Instead, create a copy using
 ``copy.copy(scores)`` or ``copy.deepcopy(scores)`` before altering it.
 """
         return self._slots
+
+    @property
+    def check_input (self):
+        """Flag indicating whether or not method parameters should be \
+checked."""
+        return self._check_input
 
     def type_ (self):
         """The type used by the column for calling class methods."""
@@ -1979,12 +1980,12 @@ check_input : boolean, default = True
             raise ValueError(
                 "After roll index must be greater than or equal to 0."
             )
+        self._after_roll = int(after_roll)
 
         if not isinstance(immediately_fill, _AnyBoolean):
             raise TypeError("Immediately fill flag must be a boolean value.")
-
-        self._after_roll = int(after_roll)
         self._immediately_fill = bool(immediately_fill)
+
         self._announcement = None
 
     def disallow_rolls (self):
@@ -2190,6 +2191,68 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
 """
 
     @classmethod
+    def _ensure_replacements (cls, n_dice, replace):
+        if replace is None:
+            return replace
+
+        if (
+            not isinstance(replace, _AnyIterable) or
+            isinstance(replace, _AnyString)
+        ):
+            replace = (replace, )
+        if not isinstance(replace, _AnySequence):
+            replace = tuple(replace)
+        if len(replace) != n_dice:
+            raise ValueError(
+                "Replacements must be of length {n_dice:d}".format(
+                    n_dice = n_dice
+                )
+            )
+        if _np is not None and isinstance(replace, _np.ndarray):
+            if not _np.ndim == 1:
+                raise ValueError(
+                    "Replacements must be a 1-dimensional sequence."
+                )
+            if not _np.issubdtype(replace.dtype, _np.bool_):
+                raise TypeError("Replacements must be boolean values.")
+        else:
+            for r in replace:
+                if not isinstance(r, _AnyBoolean):
+                    raise TypeError("Replacements must be boolean values.")
+
+        return replace
+
+    @classmethod
+    def _ensure_column (cls, n_columns, column):
+        if not isinstance(column, _AnyInteger):
+            raise TypeError("Column index must be an integral value.")
+        if column < 0:
+            column += n_columns
+        if not (0 <= column < n_columns):
+            raise ValueError(
+                "Column index is out of range [{zero:d}, " \
+                    "{n_columns:d}).".format(
+                        zero = 0,
+                        n_columns = n_columns
+                    )
+            )
+
+        return int(column)
+
+    @classmethod
+    def _replace_results (cls, old_results, new_results, replace):
+        if replace is None:
+            return new_results
+
+        j = 0
+        for i, r in enumerate(replace):
+            if r:
+                old_results[i] = new_results[j]
+                j += 1
+
+        return old_results
+
+    @classmethod
     def _new_empty_results (cls, n):
         if isinstance(n, _AnyIterable):
             if isinstance(n, _AnyCollection):
@@ -2203,10 +2266,12 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
         instance = super(Yamb, cls).__new__(cls)
 
         instance._type = None
-        instance._columns = None
+        instance._check_input = None
         instance._n_dice = None
         instance._n_rolls = None
         instance._dice = None
+        instance._columns = None
+        instance._roll_index = None
         instance._results = None
 
         return instance
@@ -2216,11 +2281,32 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
         columns = None,
         n_dice = 5,
         n_rolls = 3,
+        check_input = True,
         random_state = None
     ):
         super(Yamb, self).__init__()
 
         self._type = self.__class__
+
+        if not isinstance(check_input, _AnyBoolean):
+            raise TypeError("Check input flag must be a boolean value.")
+        self._check_input = bool(check_input)
+
+        if not isinstance(n_dice, _AnyInteger):
+            raise TypeError("Number of dice must be an integral value.")
+        if n_dice <= 0:
+            raise ValueError("Number of dice must be greater than 0.")
+        self._n_dice = int(n_dice)
+
+        if not isinstance(n_rolls, _AnyInteger):
+            raise TypeError("Number of rolls must be an integral value.")
+        if n_rolls <= 0:
+            raise ValueError("Number of rolls must be greater than 0.")
+        self._n_rolls = int(n_rolls)
+
+        self._dice = \
+            random_state if isinstance(random_state, Die) \
+                else Die(random_state)
 
         if columns is None:
             self._columns = [
@@ -2241,23 +2327,12 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
                                 column = c
                             )
                     )
+        if not self._columns:
+            raise TypeError(
+                "Yamb game cannot be empty (at least 1 column is required)."
+            )
 
-        if not isinstance(n_dice, _AnyInteger):
-            raise TypeError("Number of dice must be an integral value.")
-        if n_dice <= 0:
-            raise ValueError("Number of dice must be greater than 0.")
-        self._n_dice = int(n_dice)
-
-        if not isinstance(n_rolls, _AnyInteger):
-            raise TypeError("Number of rolls must be an integral value.")
-        if n_rolls <= 0:
-            raise ValueError("Number of rolls must be greater than 0.")
-        self._n_rolls = int(n_rolls)
-
-        self._dice = \
-            random_state if isinstance(random_state, Die) \
-                else Die(random_state)
-
+        self._roll_index = 0
         self._results = self._type._new_empty_results(self._n_dice)
 
     def which_column_is_locked (self):
@@ -2265,74 +2340,123 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
 
     def can_roll (self):
         return \
-            True if self._locked is None \
-                else self._columns[self._locked].can_roll()
+            False if self._roll_index >= self._n_rolls \
+                else (
+                    self._locked is None or
+                    self._columns[self._locked].can_roll()
+                )
 
     def start_turn (self):
         self._locked = None
 
+        self._roll_index = 0
         self._results = self._type._new_empty_results(self._results)
-        self._locked = None
 
-        return (self._results, self.get_all_pre_filling_requirements(0))
+    def get_pre_filling_requirements (self, column):
+        if self._check_input:
+            column = self._type._ensure_column(len(self._columns), column)
 
-    def get_all_pre_filling_requirements (self, roll):
-         return list(
-             c.requires_pre_filling_action(roll) for c in self._columns
+        return self._columns[column].requires_pre_filling_action(
+            self._roll_index
         )
 
-    def make_pre_filling_action (self, column, roll, *args, **kwargs):
-        #assert 0 <= roll <= self._n_rolls
-        #assert self._locked is None or column == self._locked
+    def get_all_pre_filling_requirements (self):
+         return list(
+             c.requires_pre_filling_action(self._roll_index)
+                for c in self._columns
+        )
 
-        self._columns[column].pre_filling_action(roll, *args, **kwargs)
+    def make_pre_filling_action (self, column, *args, **kwargs):
+        if self._check_input:
+            column = self._type._ensure_column(len(self._columns), column)
+            if not (self._locked is None or column == self._locked):
+                raise RuntimeError(
+                    "Cannot make action on a non-locked column if another " \
+                        "column is locked."
+                )
+
+        self._columns[column].pre_filling_action(
+            self._roll_index,
+            *args,
+            **kwargs
+        )
 
         if self._columns[column].is_locked():
             self._locked = column
 
-    def roll_dice (self, roll = 0, replace = None):
-        #assert 0 <= roll <= self._n_rolls
-        #assert roll or replace is None
+    def roll_dice (self, replace = None):
+        if self._check_input:
+            if not (self._roll_index or replace is None):
+                raise TypeError(
+                    "Replacements are not allowed in the first roll."
+                )
+            if not self.can_roll():
+                raise RuntimeError("Cannot roll dice, proceed to filling.")
+            replace = self._type._ensure_replacements(self._n_dice, replace)
 
-        if not roll:
-            return self.start_turn()
+        results = self._dice.roll(
+            self._n_dice if replace is None else sum(replace)
+        )
 
-        results = None
-        if replace is None:
-            replace = list(True for _ in range(self._n_dice))
-            results = self._dice.roll(self._n_dice)
-        else:
-            results = self._dice.roll(sum(replace))
+        self._results = self._type._replace_results(
+            self._results,
+            results,
+            replace
+        )
 
-        j = 0
-        for i in _range(self._n_dice):
-            if replace[i]:
-                self._results[i] = results[j]
-                j += 1
-
-        return (self._results, self.get_all_pre_filling_requirements(roll))
+        self._roll_index += 1
 
     def get_post_filling_requirements (self, column):
+        if self._check_input:
+            if self._roll_index:
+                raise RuntimeError(
+                    "Cannot check post-filling requirements before the end " \
+                        "of the turn."
+                )
+            if not (self._locked is None or column == self._locked):
+                raise RuntimeError(
+                    "Cannot make action on a non-locked column if another " \
+                        "column is locked."
+                )
+
         return self._columns[column].requires_post_filling_action()
 
     def make_post_filling_action (self, column, *args, **kwargs):
-        #assert self._locked is None or column == self._locked
+        if self._check_input:
+            if self._roll_index:
+                raise RuntimeError(
+                    "Cannot make post-filling action before the end of the " \
+                        "turn."
+                )
+            if not (self._locked is None or column == self._locked):
+                raise RuntimeError(
+                    "Cannot make action on a non-locked column if another " \
+                        "column is locked."
+                )
 
         self._columns[column].post_filling_action(*args, **kwargs)
 
         self._locked = None
 
     def end_turn (self, column, slot):
-        #assert self._locked is None or column == self._locked
+        if self._check_input:
+            if not self._roll_index:
+                raise RuntimeError(
+                    "Cannot end turn before rolling the dice at least once."
+                )
+            if not (self._locked is None or column == self._locked):
+                raise RuntimeError(
+                    "Cannot fill a non-locked column if another column is " \
+                        "locked."
+                )
 
         self._columns[column].fill_slot(slot, self._results)
 
+        self._roll_index = 0
+
         requirements = self.get_post_filling_requirements(column)
 
-        if not requirements:
-            self._locked = None
-
-        return requirements
+        self._locked = column if requirements else None
 
     def update_auto_slots (self):
         for i in _range(len(self._columns)):
@@ -2341,8 +2465,11 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
     def is_full (self, fillable = False):
         return all(c.is_full(fillable) for c in self._columns)
 
-    def get_total (self, slot = Slot.TOTAL):
-        return sum(c[slot] for c in self._columns)
+    def get_total_score (self, slot = Slot.TOTAL):
+        return sum(
+            c[slot]
+                for c in self._columns if not c.type_.is_lambda_score(c[slot])
+        )
 
     def to_numpy (self):
         if _np is None:
@@ -2368,11 +2495,10 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
         return len(self._columns)
 
     def __getitem__ (self, key):
-        return self._columns[key]
+        if self._check_input:
+            key = self._type._ensure_column(key)
 
-    @property
-    def columns (self):
-        return self._columns
+        return self._columns[key]
 
     @property
     def n_dice (self):
@@ -2387,17 +2513,242 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
         return self._dice
 
     @property
+    def columns (self):
+        return self._columns
+
+    @property
+    def roll_index (self):
+        return self._roll_index
+
+    @property
     def results (self):
         return self._results
+
+    @property
+    def check_input (self):
+        return self._check_input
+
+    @property
+    def type_ (self):
+        return self._type
 
 class Player (object if _sys.version_info.major < 3 else _abc.ABC):
     if _sys.version_info.major < 3:
         __metaclass__ = _abc.ABCMeta
 
     def __new__ (cls, *args, **kwargs):
-        instance = super(Player, cls).__new__()
+        instance = super(Player, cls).__new__(cls)
+
+        instance._type = None
+        instance._check_input = None
+        instance._name = None
+        instance._update_auto_slots = None
 
         return instance
 
-    def __init__ (self):
+    def __init__ (
+        self,
+        name = None,
+        update_auto_slots = False,
+        check_input = True
+    ):
+        super(Player, self).__init__()
+
+        self._type = self.__class__
+
+        if not isinstance(check_input, _AnyBoolean):
+            raise TypeError("Check input flag must be a boolean value.")
+        self._check_input = bool(check_input)
+
+        if not (name is None or isinstance(name, _AnyString)):
+            raise TypeError("Column name must be a string value.")
+        self._name = str(
+            getattr(self._type, '__name__', 'Column') if name is None
+                else name
+        )
+
+        if update_auto_slots is None:
+            self._update_auto_slots = 0
+        if isinstance(update_auto_slots, _AnyBoolean):
+            self._update_auto_slots = int(update_auto_slots)
+        if isinstance(update_auto_slots, _AnyInteger):
+            if update_auto_slots < 0:
+                raise ValueError(
+                    "Update auto slots checkpoint must be grater than or " \
+                        "equal to 0."
+                )
+            self._update_auto_slots = int(update_auto_slots)
+        else:
+            raise TypeError(
+                "Update auto slots checkpoint must be a boolean or an " \
+                    "integral value."
+            )
+
+    @_abc.abstractmethod
+    def observe_roll_results (
+        self,
+        columns,
+        locked_column_index,
+        roll,
+        results
+    ):
         pass
+
+    @_abc.abstractmethod
+    def choose_pre_filling_action_column (
+        self,
+        columns,
+        roll,
+        results,
+        requirements
+    ):
+        pass
+
+    @_abc.abstractmethod
+    def set_pre_filling_requirements (
+        self,
+        columns,
+        column_index,
+        roll,
+        results,
+        requirements
+    ):
+        pass
+
+    @_abc.abstractmethod
+    def choose_replacements (
+        self,
+        columns,
+        locked_column_index,
+        roll,
+        results
+    ):
+        pass
+
+    @_abc.abstractmethod
+    def choose_column_to_fill (self, columns, results):
+        pass
+
+    @_abc.abstractmethod
+    def choose_slot_to_fill (self, columns, column_index, results):
+        pass
+
+    @_abc.abstractmethod
+    def set_post_filling_requirements (
+        self,
+        columns,
+        column_index,
+        slot,
+        requirements
+    ):
+        pass
+
+    def play (self, game = None):
+        if game is None:
+            game = Yamb()
+        elif self._check_input and not isinstance(game, Yamb):
+            raise TypeError(
+                "Game must be of type `Yamb`, game {game} is not " \
+                    "understood.".format(
+                        game = game
+                    )
+            )
+
+        i = 0
+
+        while not game.is_full(True):
+            game.start_turn()
+
+            i += 1
+
+            while True:
+                self.observe_roll_results(
+                    game.columns,
+                    game.which_column_is_locked(),
+                    game.roll_index,
+                    game.results
+                )
+
+                if game.which_column_is_locked() is None:
+                    requirements = game.get_all_pre_filling_requirements()
+                    if any(requirements):
+                        column = self.choose_pre_filling_action_column(
+                            game.columns,
+                            game.roll_index,
+                            game.results,
+                            requirements
+                        )
+                        if column is not None:
+                            args, kwargs = self.set_pre_filling_requirements(
+                                game.columns,
+                                column,
+                                game.roll_index,
+                                game.results,
+                                requirements[column]
+                            )
+                            game.make_pre_filling_action(
+                                column,
+                                *args,
+                                **kwargs
+                            )
+
+                if game.can_roll():
+                    if game.roll_index:
+                        replace = self.choose_replacements(
+                            game.columns,
+                            game.which_column_is_locked(),
+                            game.roll_index,
+                            game.results
+                        )
+                        if replace is None:
+                            break
+                        else:
+                            game.roll_dice(replace)
+                    else:
+                        game.roll_dice()
+                else:
+                    break
+
+            column = game.which_column_is_locked()
+            if column is None:
+                column = self.choose_column_to_fill(
+                    game.columns,
+                    game.results
+                )
+            slot = self.choose_slot_to_fill(
+                game.columns,
+                column,
+                game.results
+            )
+            game.end_turn(column, slot)
+
+            requirements = game.get_post_filling_requirements(column)
+            if requirements:
+                args, kwargs = self.set_post_filling_requirements(
+                    game.columns,
+                    column,
+                    slot,
+                    requirements
+                )
+                game.make_post_filling_action(column, *args, **kwargs)
+
+            if self._update_auto_slots and not i % self._update_auto_slots:
+                game.update_auto_slots()
+
+        return game
+
+    @property
+    def name (self):
+        return self._name
+
+    @property
+    def update_auto_slots (self):
+        return self._update_auto_slots
+
+    @property
+    def check_input (self):
+        return self._check_input
+
+    @property
+    def type_ (self):
+        return self._type
