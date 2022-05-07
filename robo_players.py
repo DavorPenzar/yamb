@@ -285,6 +285,7 @@ class NeuralPlayer (_engine.Player):
             shape = y.shape,
             order = 'C'
         )
+        slot = _engine.Column.fillable_slots_array[slot]
 
         if column not in self._announced_columns:
             return None
@@ -386,6 +387,7 @@ class NeuralPlayer (_engine.Player):
             shape = y.shape,
             order = 'C'
         )
+        slot = _engine.Column.fillable_slots_array[slot]
 
         self._column = column
         self._slot = slot

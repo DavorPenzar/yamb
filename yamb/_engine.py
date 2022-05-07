@@ -698,7 +698,7 @@ converted to a `tuple` or a `list`.
         if not isinstance(results, _AnySequence):
             results = tuple(results)
         if _np is not None and isinstance(results, _np.ndarray):
-            if not _np.ndim == 1:
+            if not results.ndim == 1:
                 raise ValueError("Results must be a 1-dimensional sequence.")
             if not _np.issubdtype(results.dtype, _np.integer):
                 raise TypeError("Results must be integers.")
