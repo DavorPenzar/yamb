@@ -62,30 +62,6 @@ class NeuralPlayer (_engine.Player):
         return _np.dot(A, b) + x
 
     @classmethod
-    def _relu_complete (
-        cls,
-        x,
-        max_value = _math.inf,
-        negative_slope = 0,
-        threshold = 0
-    ):
-        return _np.where(
-            x > max_value,
-            max_value,
-            _np.where(
-                x < threshold,
-                negative_slope * (x - threshold),
-                x
-            )
-        )
-
-    def _relu (cls, x):
-        return _np.maximum(x, 0)
-
-    def _linear (cls, x):
-        return x
-
-    @classmethod
     def _transform (cls, layers, x):
         for A, b, f in layers:
             x = f(cls._apply_affine_operator(A, b, x))
@@ -247,10 +223,10 @@ class NeuralPlayer (_engine.Player):
 
         y = _np.around(self._type._transform([], X))
 
-        replace = _np.zeros(len(results), dtype = _np.bool_)
+        replace = _np.ones(len(results), dtype = _np.bool_)
         for i, r in enumerate(results):
-            if y[r] > 0:
-                replace[i] = True
+            if y[r] >= 0.5:
+                replace[i] = False
                 y[r] -= 1
 
         return replace if _np.any(replace) else None
