@@ -1794,6 +1794,7 @@ of cheating when done during a game.  Instead, create a copy using
 checked."""
         return self._check_input
 
+    @property
     def type_ (self):
         """The type used by the column for calling class methods."""
         return self._type
@@ -2211,7 +2212,7 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
                 )
             )
         if _np is not None and isinstance(replace, _np.ndarray):
-            if not _np.ndim == 1:
+            if replace.ndim != 1:
                 raise ValueError(
                     "Replacements must be a 1-dimensional sequence."
                 )
@@ -2628,11 +2629,11 @@ class Player (object if _sys.version_info.major < 3 else _abc.ABC):
         pass
 
     @_abc.abstractmethod
-    def choose_column_to_fill (self, columns, results):
+    def choose_column_to_fill (self, columns, roll, results):
         pass
 
     @_abc.abstractmethod
-    def choose_slot_to_fill (self, columns, column_index, results):
+    def choose_slot_to_fill (self, columns, column_index, roll, results):
         pass
 
     @_abc.abstractmethod
@@ -2721,11 +2722,13 @@ class Player (object if _sys.version_info.major < 3 else _abc.ABC):
             if column is None:
                 column = self.choose_column_to_fill(
                     game.columns,
+                    game.roll_index,
                     game.results
                 )
             slot = self.choose_slot_to_fill(
                 game.columns,
                 column,
+                game.roll_index,
                 game.results
             )
             game.end_turn(column, slot)
@@ -2738,6 +2741,7 @@ class Player (object if _sys.version_info.major < 3 else _abc.ABC):
                     args, kwargs = self.set_post_filling_requirements(
                         game.columns,
                         column,
+                        game.roll_index,
                         slot,
                         requirements
                     )

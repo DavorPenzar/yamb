@@ -294,13 +294,11 @@ integers in a standard game with 5 dice.
         def get_available_slots (self):
             if self._available_slots is None:
                 available_slots = self._type.get_lambda_slots(self._slots)
-                available_slots = available_slots[
-                    _np.isin(
-                        available_slots,
-                        self._type.fillable_slots_array,
-                        assume_unique = True
-                    )
-                ]
+                available_slots = _np.intersect1d(
+                    available_slots,
+                    self._type.fillable_slots_array,
+                    assume_unique = True
+                )
 
                 self._available_slots = available_slots
 
@@ -349,6 +347,8 @@ def boost_yamb (cls = _Yamb, class_name = None):
                 old_results = _np.asanyarray(old_results)
 
             old_results[replace] = new_results
+
+            return old_results
 
         @classmethod
         def _new_empty_results (cls, n):

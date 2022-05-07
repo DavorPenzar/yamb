@@ -96,7 +96,7 @@ class _SimpleConsolePlayer (_engine.Player):
 
         return replace
 
-    def choose_column_to_fill (self, columns, results):
+    def choose_column_to_fill (self, columns, roll, results):
         column = None
 
         free_columns = list(
@@ -109,7 +109,7 @@ class _SimpleConsolePlayer (_engine.Player):
 
         return column
 
-    def choose_slot_to_fill (self, columns, column_index, results):
+    def choose_slot_to_fill (self, columns, column_index, roll, results):
         slot = None
 
         next_slots = columns[column_index].get_next_available_slots()
