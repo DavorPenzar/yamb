@@ -9,14 +9,17 @@ import numpy as _np
 
 import yamb as _engine
 
+_posinf = float('inf') # math.inf, numpy.inf
+_neginf = -_posinf # numpy.NINF
+
 _max_cache_size = 0x20
 
-def linear (cls, x):
+def linear (x):
     return x
 
 def relu_complete (
     x,
-    max_value = _math.inf,
+    max_value = _posinf,
     negative_slope = 0,
     threshold = 0
 ):
@@ -30,7 +33,7 @@ def relu_complete (
         )
     )
 
-def relu (cls, x):
+def relu (x):
     return _np.maximum(x, 0)
 
 class NeuralPlayer (_engine.Player):
@@ -194,7 +197,7 @@ class NeuralPlayer (_engine.Player):
         y = self._type._transform([], X)
         for i, s in enumerate(_engine.Column.fillable_slots_array):
             if not column.type_.is_lambda(column[s]):
-                y[i] = -_math.inf
+                y[i] = _neginf
 
         return (
             (),
@@ -244,7 +247,7 @@ class NeuralPlayer (_engine.Player):
         y = self._type._transform([], X)
         for i, c in enumerate(columns):
             if isinstance(c, _engine.AnnouncedColumn) or c.is_full(True):
-                y[i] = -_math.inf
+                y[i] = _neginf
 
         return _np.argmax(y)
 
@@ -266,6 +269,6 @@ class NeuralPlayer (_engine.Player):
         y = self._type._transform([], X)
         for i, s in enumerate(_engine.Column.fillable_slots_array):
             if not column.type_.is_lambda(column[s]):
-                y[i] = -_math.inf
+                y[i] = _neginf
 
         return _engine.Column.fillable_slots_array[_np.argmax(y)]
