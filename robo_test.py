@@ -40,7 +40,8 @@ def main (argv = []):
             _OrderedColumn(order = 'up', name = 'Up'),
             _FreeColumn(name = 'Free'),
             _AnnouncedColumn(name = 'Announce')
-        ]
+        ],
+        random_state = R
     )
 
     player = _players.NeuralPlayer(
@@ -125,6 +126,7 @@ def main (argv = []):
     )
 
     game = player.play(game)
+    game.update_auto_slots()
 
     print(game.to_pandas(True))
     print(f"Final score: {game.get_total_score()}")

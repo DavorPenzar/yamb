@@ -2089,7 +2089,7 @@ than a single integer.
                 raise KeyError(
                     "Slot {slot} is auto-filled.".format(slot = slot)
                 )
-            if self._slots[slot] is not None:
+            if not self._type.is_lambda(self._slots[slot]):
                 raise RuntimeError(
                     "Slot {slot} is already filled.".format(slot = slot)
                 )
@@ -2471,7 +2471,7 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
     def get_total_score (self, slot = Slot.TOTAL):
         return sum(
             c[slot]
-                for c in self._columns if not c.type_.is_lambda_score(c[slot])
+                for c in self._columns if not c.type_.is_lambda(c[slot])
         )
 
     def to_numpy (self):

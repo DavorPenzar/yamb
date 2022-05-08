@@ -165,7 +165,7 @@ class NeuralPlayer (_engine.Player):
         column_slot_layers,
         unlocked_replace_layers,
         locked_replace_layers,
-        announced_columns = 4,
+        announced_columns = 3,
         name = None,
         update_auto_slots = False,
         check_input = True
@@ -200,9 +200,12 @@ class NeuralPlayer (_engine.Player):
         if announced_columns is None:
             self._announced_columns = None
         else:
-            if not isinstance(
-                announced_columns,
-                (_collections.abc.Iterable, _np.ndarray)
+            if (
+                not isinstance(
+                    announced_columns,
+                    (_collections.abc.Iterable, _np.ndarray)
+                ) or
+                isinstance(announced_columns, (str, _np.str_))
             ):
                 announced_columns = (announced_columns, )
             if not isinstance(
@@ -210,7 +213,14 @@ class NeuralPlayer (_engine.Player):
                 (_collections.abc.Sequence, _np.ndarray)
             ):
                 announced_columns = list(announced_columns)
-            announced_columns = _np.array(announced_columns, copy = True)
+            if (
+                len(announced_columns) or
+                hasattr(announced_columns, 'dtype') or
+                hasattr(announced_columns, 'dtypes')
+            ):
+                announced_columns = _np.array(announced_columns, copy = True)
+            else:
+                announced_columns = _np.array([], dtype = _np.int32, copy = True)
             if not _np.issubdtype(announced_columns.dtype, _np.integer):
                 raise TypeError()
             if announced_columns.ndim != 1:
@@ -218,7 +228,7 @@ class NeuralPlayer (_engine.Player):
             if _np.any(announced_columns <= 0):
                 raise ValueError()
             self._announced_columns = \
-                _np.unique(announced_columns - 1) if len(announced_columns) \
+                _np.unique(announced_columns) if len(announced_columns) \
                     else None
 
         self._column = None
@@ -244,17 +254,6 @@ class NeuralPlayer (_engine.Player):
         if self._announced_columns is None:
             return None
 
-        full = _np.row_stack(
-            tuple(
-                c.type_.is_lambda(
-                    c.scores[_engine.Column.fillable_slots_array]
-                ) for c in columns
-            )
-        )
-
-        if _np.all(full[self._announced_columns]):
-            return None
-
         X = _np.concatenate(
             (
                 self._type._get_columns_representation(columns, roll).ravel(),
@@ -271,14 +270,18 @@ class NeuralPlayer (_engine.Player):
         ).reshape((len(columns), len(_engine.Column.fillable_slots_array)))
         y = _np.ascontiguousarray(y)
         for i, c in enumerate(columns):
-            y[
-                i,
-                _np.isin(
-                    _engine.Column.fillable_slots_array,
-                    c.get_next_available_slots(),
-                    assume_unique = True,
-                    invert = True)
-            ] = _neginf
+            if i in self._announced_columns and roll > c.after_roll:
+                y[i].fill(_neginf)
+            else:
+                y[
+                    i,
+                    _np.isin(
+                        _engine.Column.fillable_slots_array,
+                        c.get_next_available_slots(),
+                        assume_unique = True,
+                        invert = True
+                    )
+                ] = _neginf
 
         column, slot = _np.unravel_index(
             _np.argmax(y),
@@ -303,6 +306,10 @@ class NeuralPlayer (_engine.Player):
         results,
         requirements
     ):
+        if self._slot is None:
+            self._column = column_index
+            self._slot = columns[column_index].get_next_available_slots()[0]
+
         return ((), { 'announcement': self._slot })
 
     def choose_replacements (
@@ -395,6 +402,10 @@ class NeuralPlayer (_engine.Player):
         return self._column
 
     def choose_slot_to_fill (self, columns, column_index, roll, results):
+        if self._slot is None:
+            self._column = column_index
+            self._slot = columns[column_index].get_next_available_slots()[0]
+
         return self._slot
 
     def set_post_filling_requirements (
