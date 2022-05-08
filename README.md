@@ -68,8 +68,9 @@ The intended usage was actually to develop an automated computer player of the g
 
 1. finishing the game engine&mdash;finishing the `yamb.Yamb` class (mostly inline documentation, but also code revision and possible changes), finishing the `yamb` [*Python*](http://docs.python.org/) package,
 2. developing an automated player through:
-    * generation of many such players through [evolutionary algorithms (EA)](http://en.wikipedia.org/wiki/Evolutionary_algorithm) and seeing if their parameters and performance converges&mdash;these may include neural networks, decision trees, ensembles etc.
-        * results from [*expected_results.csv*](expected_results.csv)/[*expected_results_us.csv*](expected_results_us.csv) may be used for filling missing (not yet filled) slots; optionally, auto-filled slots may be recalculated using actual values for filled slots and expected results for slots that are not yet filled (e. g. if slots 1 and 3 are filled with values 4 and 9 respectively, but other number slots are still missing, `NUMBERS_SUM` may be recalculated to the value of 27.1666666666666667 from the original 17,5 which assumes values 0,8333333333333333 in slot 1 and 2,5 in slot 3),
+    * finishing the neural network based player ([`NuralPlayer`](robo_players.py#L46)) (mostly inline documentation),
+    * generation of many such players through [evolutionary algorithms (EA)](http://en.wikipedia.org/wiki/Evolutionary_algorithm) and seeing if their parameters and performance converges
+        * results from [*expected_results.csv*](expected_results.csv)/[*expected_results_us.csv*](expected_results_us.csv) are used for filling missing (not yet filled) slots in the first generation, but subsequent generations should use averages from the previous generation,
     * hyperparameter optimisation of the [EA](http://en.wikipedia.org/wiki/Evolutionary_algorithm) approach.
 
 If needed, the game engine may be altered/optimised before the development of such players if significant bottlenecks are diagnosed during the process. Alternatively, use `yamb.booster` submodule (and optimise it if needed, as well).
