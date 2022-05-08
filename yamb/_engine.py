@@ -892,7 +892,7 @@ Notes
 For optimisation purposes, this method does not check parameter type but only
 its values.
 """
-        return list(s for s in Slot if cls.is_lambda(scores[s]))
+        return tuple(s for s in Slot if cls.is_lambda(scores[s]))
 
     def __new__ (cls, *args, **kwargs):
         instance = super(Column, cls).__new__(cls)
@@ -2364,7 +2364,7 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
         )
 
     def get_all_pre_filling_requirements (self):
-         return list(
+         return tuple(
              c.requires_pre_filling_action(self._roll_index)
                 for c in self._columns
         )
