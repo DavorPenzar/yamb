@@ -231,6 +231,8 @@ class NeuralPlayer (_engine.Player):
             scores[_engine.Slot.NUMBERS_SUM] = _np.sum(
                 scores[_engine.Column.fillable_slots_array]
             )
+            if scores[_engine.Slot.NUMBERS_SUM] >= 60:
+                scores[_engine.Slot.NUMBERS_SUM] += 30
         if column_type.is_lambda(scores[_engine.Slot.SUMS_DIFFERENCE]):
             scores[_engine.Slot.NUMBERS_SUM] = \
                 scores[_engine.Slot.MAX] - scores[_engine.Slot.MIN]
@@ -242,7 +244,7 @@ class NeuralPlayer (_engine.Player):
             scores[_engine.Slot.TOTAL] = _np.sum(
                 scores[_engine.Column.inner_auto_slots_array]
             )
-        scores = scores[_engine.Column.auto_slots_array].astype(_np.int32)
+        scores = scores[_engine.Column.auto_slots_array].astype(_np.float32)
 
         column = _np.concatenate(
             (
