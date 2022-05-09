@@ -3,7 +3,6 @@
 import collections as _collections
 import functools as _functools
 import itertools as _itertools
-import math as _math
 import numbers as _numbers
 
 import numpy as _np
@@ -18,7 +17,7 @@ _neginf = -_posinf # numpy.NINF
 
 _max_cache_size = 0x20
 
-def linear (x):
+def identity (x):
     return x
 
 def relu_complete (
@@ -27,15 +26,42 @@ def relu_complete (
     negative_slope = 0,
     threshold = 0
 ):
-    return _np.where(
-        x > max_value,
+    x, max_value, negative_slope, threshold = _np.broadcast_arrays(
+        x,
         max_value,
-        _np.where(
-            x < threshold,
-            negative_slope * (x - threshold),
-            x
+        negative_slope,
+        threshold,
+        subok = True
+    )
+
+    idx_negative = (x < threshold)
+    idx_max = (x >= max_value)
+    idx_x = ~(idx_negative | idx_max)
+
+    y = _np.zeros(
+        x.shape,
+        dtype = _np.find_common_type(
+            [ x.dtype ],
+            [ max_value.dtype, negative_slope.dtype, threshold.dtype ]
         )
     )
+
+    _np.subtract(
+        x,
+        threshold,
+        where = idx_negative,
+        out = y
+    )
+    _np.multiply(
+        negative_slope,
+        y,
+        where = idx_negative,
+        out = y
+    )
+    _np.copyto(y, max_value, where = idx_max)
+    _np.copyto(y, x, where = idx_x)
+
+    return y
 
 def relu (x):
     return _np.maximum(x, 0)
@@ -117,7 +143,7 @@ class NeuralPlayer (_engine.Player):
     def _build_layers (
         cls,
         layers,
-        out_function = linear,
+        out_function = identity,
         input_size = None,
         output_size = None
     ):
@@ -127,7 +153,7 @@ class NeuralPlayer (_engine.Player):
         ):
             layers = (layers, )
         if out_function is None:
-            out_function = linear
+            out_function = identity
         if not (
             callable(out_function) or
             isinstance(out_function, _collections.Callable)
@@ -331,6 +357,33 @@ class NeuralPlayer (_engine.Player):
 
         return replace if _np.any(replace) else None
 
+    @classmethod
+    def calculate_column_slot_units (cls, n_columns = 4, n_dice = 5):
+        return (
+            n_columns * 2 * len(_engine.Column.fillable_slots_array) +
+                1 +
+                len(_engine.Die.sides),
+            n_columns * len(_engine.Column.fillable_slots_array)
+        )
+
+    @classmethod
+    def calculate_unlocked_replace_units (cls, n_columns = 4, n_dice = 5):
+        return (
+            n_columns * 2 * len(_engine.Column.fillable_slots_array) +
+                1 +
+                len(_engine.Die.sides),
+            len(_engine.Die.sides)
+        )
+
+    @classmethod
+    def calculate_locked_replace_units (cls, n_columns = 4, n_dice = 5):
+        return (
+            len(_engine.Column.fillable_slots_array) +
+                1 +
+                len(_engine.Die.sides),
+            len(_engine.Die.sides)
+        )
+
     def __new__ (cls, *args, **kwargs):
         instance = super(NeuralPlayer, cls).__new__(cls)
 
@@ -424,26 +477,26 @@ class NeuralPlayer (_engine.Player):
         self._column_slot_layers = self._type._build_layers(
             column_slot_layers,
             sigmoid,
-            self._n_columns * 2 * len(_engine.Column.fillable_slots_array) +
-                1 +
-                len(_engine.Die.sides),
-            self._n_columns * len(_engine.Column.fillable_slots_array)
+            *self._type.calculate_column_slot_units(
+                self._n_columns,
+                self._n_dice
+            )
         )
         self._unlocked_replace_layers = self._type._build_layers(
             unlocked_replace_layers,
             relu,
-            self._n_columns * 2 * len(_engine.Column.fillable_slots_array) +
-                1 +
-                len(_engine.Die.sides),
-            len(_engine.Die.sides)
+            *self._type.calculate_unlocked_replace_units(
+                self._n_columns,
+                self._n_dice
+            )
         )
         self._locked_replace_layers = self._type._build_layers(
             locked_replace_layers,
             relu,
-            len(_engine.Column.fillable_slots_array) +
-                1 +
-                len(_engine.Die.sides),
-            len(_engine.Die.sides)
+            *self._type.calculate_locked_replace_units(
+                self._n_columns,
+                self._n_dice
+            )
         )
 
         self._column = None
@@ -456,8 +509,7 @@ class NeuralPlayer (_engine.Player):
         roll,
         results
     ):
-        self._column = None
-        self._slot = None
+        pass
 
     def choose_pre_filling_action_column (
         self,
@@ -583,7 +635,7 @@ class NeuralPlayer (_engine.Player):
             )
         )
 
-        column, slot = self._type._get_column_slot_y(
+        self._column, self._slot = self._type._get_column_slot_y(
             columns,
             self._column_slot_layers,
             x,
@@ -591,9 +643,6 @@ class NeuralPlayer (_engine.Player):
             self._column,
             None
         )
-
-        self._column = column
-        self._slot = slot
 
         return self._column
 
@@ -613,3 +662,31 @@ class NeuralPlayer (_engine.Player):
         requirements
     ):
         return None
+
+    def observe_turn_end (self, columns):
+        self._column = 0
+        self._slot = 0
+
+    @property
+    def n_columns (self):
+        return self._n_columns
+
+    @property
+    def n_dice (self):
+        return self._n_dice
+
+    @property
+    def announced_columns (self):
+        return self._announced_columns
+
+    @property
+    def column_slot_layers (self):
+        return self._column_slot_layers
+
+    @property
+    def unlocked_replace_layers (self):
+        return self._unlocked_replace_layers
+
+    @property
+    def locked_replace_layers (self):
+        return self._locked_replace_layers

@@ -701,13 +701,13 @@ converted to a `tuple` or a `list`.
             if not results.ndim == 1:
                 raise ValueError("Results must be a 1-dimensional sequence.")
             if not _np.issubdtype(results.dtype, _np.integer):
-                raise TypeError("Results must be integers.")
+                raise TypeError("Results must be integral values.")
             if not _np.all((results >= 1) & (results <= 6)):
                 raise ValueError("Results must be in range [1..6].")
         else:
             for r in results:
                 if not isinstance(r, _AnyInteger):
-                    raise TypeError("Results must be integers.")
+                    raise TypeError("Results must be integral values.")
                 if not 1 <= r <= 6:
                     raise ValueError("Results must be in range [1..6].")
 
@@ -2637,6 +2637,10 @@ class Player (object if _sys.version_info.major < 3 else _abc.ABC):
         pass
 
     @_abc.abstractmethod
+    def observe_turn_end (self, columns):
+        pass
+
+    @_abc.abstractmethod
     def set_post_filling_requirements (
         self,
         columns,
@@ -2749,6 +2753,8 @@ class Player (object if _sys.version_info.major < 3 else _abc.ABC):
 
             if self._update_auto_slots and not i % self._update_auto_slots:
                 game.update_auto_slots()
+
+            self.observe_turn_end(game.columns)
 
         return game
 
