@@ -100,8 +100,9 @@ def _create_random_player (
 def _create_next_generation (
     players,
     scores,
-    p = 0.1,
-    n = None,
+    top_players = 0.1,
+    skip_top = 0,
+    n_players = None,
     spread = 10,
     centre = _np.mean,
     random_state = None
@@ -109,12 +110,18 @@ def _create_next_generation (
     if random_state is None:
         random_state = _np.random.default_rng()
 
-    if n is None:
-        n = len(players)
-    if not isinstance(p, (_numbers.Integral, int, _np.integer)):
-        p = int(round(p * len(players)))
+    if n_players is None:
+        n_players = len(players)
+    if not isinstance(top_players, (_numbers.Integral, int, _np.integer)):
+        top_players = int(round(top_players * len(players)))
+    if skip_top is None:
+        skip_top = 0
+    if not isinstance(skip_top, (_numbers.Integral, int, _np.integer)):
+        skip_top = int(round(skip_top * len(players)))
 
-    I = _np.flip(_np.argsort(_np.asarray(scores)))[:p].copy()
+    I = _np.flip(
+        _np.argsort(_np.asarray(scores))
+    )[skip_top:skip_top + top_players].copy()
 
     players = list(players[i] for i in I)
 
@@ -126,7 +133,7 @@ def _create_next_generation (
     n_unlocked_replace_layers = 0
     n_locked_replace_layers = 0
 
-    for i in range(p):
+    for i in range(top_players):
         for j, l in enumerate(players[i].column_slot_layers):
             if len(column_slot_layers) <= j:
                 column_slot_layers.append([ (l[0], l[1]) ])
@@ -149,12 +156,12 @@ def _create_next_generation (
     column_slot_layers_centres = list(
         (
             centre(
-                list(l[j][0] for j in range(p)),
+                list(l[j][0] for j in range(top_players)),
                 axis = 0,
                 keepdims = False
             ),
             centre(
-                list(l[j][1] for j in range(p)),
+                list(l[j][1] for j in range(top_players)),
                 axis = 0,
                 keepdims = False
             )
@@ -163,12 +170,12 @@ def _create_next_generation (
     unlocked_replace_layers_centres = list(
         (
             centre(
-                list(l[j][0] for j in range(p)),
+                list(l[j][0] for j in range(top_players)),
                 axis = 0,
                 keepdims = False
             ),
             centre(
-                list(l[j][1] for j in range(p)),
+                list(l[j][1] for j in range(top_players)),
                 axis = 0,
                 keepdims = False
             )
@@ -177,12 +184,12 @@ def _create_next_generation (
     locked_replace_layers_centres = list(
         (
             centre(
-                list(l[j][0] for j in range(p)),
+                list(l[j][0] for j in range(top_players)),
                 axis = 0,
                 keepdims = False
             ),
             centre(
-                list(l[j][1] for j in range(p)),
+                list(l[j][1] for j in range(top_players)),
                 axis = 0,
                 keepdims = False
             )
@@ -190,13 +197,13 @@ def _create_next_generation (
     )
 
     new_players = list()
-    for i in range(n):
-        r, s = tuple(random_state.choice(p + i, size = 2, replace = True))
+    for i in range(n_players):
+        r, s = tuple(random_state.choice(top_players + i, size = 2, replace = True))
         a = _np.cast['float32'](random_state.uniform(0, 1, size = None))
         b = 1 - a
 
-        p1 = players[r] if r < p else new_players[r - p]
-        p2 = players[s] if s < p else new_players[s - p]
+        p1 = players[r] if r < top_players else new_players[r - top_players]
+        p2 = players[s] if s < top_players else new_players[s - top_players]
 
         new_players.append(
             _players.NeuralPlayer(
@@ -261,6 +268,7 @@ def main (argv = []):
 
     n_players = 1000
     n_generations = 20
+    original_spread = 10
 
     players = list(
         _create_random_player(
@@ -291,9 +299,10 @@ def main (argv = []):
         players = _create_next_generation(
             players,
             scores,
-            p = 0.05,
-            n = n_players,
-            spread = 10 / _math.sqrt(i + 1),
+            top_players = 0.05,
+            skip_top = 0.005,
+            n_players = n_players,
+            spread = original_spread / _math.sqrt(i + 1),
             centre = _np.median,
             random_state = R
         )

@@ -2259,11 +2259,11 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
     def _new_empty_results (cls, n):
         if isinstance(n, _AnyIterable):
             if isinstance(n, _AnyCollection):
-                return list(0 for _ in range(len(n)))
+                return list(0 for _ in _range(len(n)))
             else:
                 return list(0 for _ in n)
 
-        return list(0 for _ in range(n))
+        return list(0 for _ in _range(n))
 
     def __new__ (cls, *args, **kwargs):
         instance = super(Yamb, cls).__new__(cls)
