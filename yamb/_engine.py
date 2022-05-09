@@ -471,14 +471,19 @@ method.
         ]
     )
     fillable_slots = number_slots | sum_slots | collection_slots
-    auto_slots = frozenset(
+    inner_auto_slots = frozenset(
         [
-            Slot.TOTAL,
             Slot.NUMBERS_SUM,
             Slot.SUMS_DIFFERENCE,
             Slot.COLLECTIONS_SUM
         ]
     )
+    outer_auto_slots = frozenset(
+        [
+            Slot.TOTAL
+        ]
+    )
+    auto_slots = inner_auto_slots | outer_auto_slots
     slots = fillable_slots | auto_slots
 
     if _np is not None:
@@ -498,6 +503,14 @@ method.
             list(sorted(fillable_slots)),
             dtype = _np.int32
         )
+        inner_auto_slots_array = _np.array(
+            list(sorted(inner_auto_slots)),
+            dtype = _np.int32
+        )
+        outer_auto_slots_array = _np.array(
+            list(sorted(outer_auto_slots)),
+            dtype = _np.int32
+        )
         auto_slots_array = _np.array(
             list(sorted(auto_slots)),
             dtype = _np.int32
@@ -510,6 +523,8 @@ method.
         sum_slots_array.flags.writeable = False
         collection_slots_array.flags.writeable = False
         fillable_slots_array.flags.writeable = False
+        inner_auto_slots_array.flags.writeable = False
+        outer_auto_slots_array.flags.writeable = False
         auto_slots_array.flags.writeable = False
         slots_array.flags.writeable = False
 
@@ -538,6 +553,16 @@ method.
             dtype = int,
             name = 'Slot'
         )
+        inner_auto_slots_index = _pd.Index(
+            list(sorted(inner_auto_slots)),
+            dtype = int,
+            name = 'Slot'
+        )
+        outer_auto_slots_index = _pd.Index(
+            list(sorted(outer_auto_slots)),
+            dtype = int,
+            name = 'Slot'
+        )
         auto_slots_index = _pd.Index(
             list(sorted(auto_slots)),
             dtype = int,
@@ -548,6 +573,7 @@ method.
             dtype = int,
             name = 'Slot'
         )
+
         number_slots_str_index = _pd.Index(
             list(s.name for s in sorted(number_slots)),
             dtype = _str_dtype,
@@ -568,8 +594,13 @@ method.
             dtype = _str_dtype,
             name = 'Slot'
         )
-        auto_slots_str_index = _pd.Index(
-            list(s.name for s in sorted(auto_slots)),
+        inner_auto_slots_str_index = _pd.Index(
+            list(s.name for s in sorted(inner_auto_slots)),
+            dtype = _str_dtype,
+            name = 'Slot'
+        )
+        outer_auto_slots_str_index = _pd.Index(
+            list(s.name for s in sorted(outer_auto_slots)),
             dtype = _str_dtype,
             name = 'Slot'
         )

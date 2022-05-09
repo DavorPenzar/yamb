@@ -209,35 +209,58 @@ class NeuralPlayer (_engine.Player):
     @_functools.lru_cache(maxsize = _max_cache_size)
     def _get_hashable_column_representation (
         cls,
+        column_type,
         scores,
         next_available_results
     ):
-        """(2, n_fillable_slots)"""
-        column = _np.array(
-            [
-                _np.asanyarray(scores)[
-                    _engine.Column.fillable_slots_array
-                ],
+        scores = _np.array(scores, copy = True)
+        _np.copyto(
+            scores,
+            cls.expected_scores,
+            where = _np.isin(
+                _np.arange(len(_engine.Slot), dtype = _np.int32),
+                _np.intersect1d(
+                    column_type.get_lambda_slots(scores),
+                    _engine.Column.fillable_slots_array,
+                    assume_unique = True
+                ),
+                assume_unique = True
+            )
+        )
+        if column_type.is_lambda(scores[_engine.Slot.NUMBERS_SUM]):
+            scores[_engine.Slot.NUMBERS_SUM] = _np.sum(
+                scores[_engine.Column.fillable_slots_array]
+            )
+        if column_type.is_lambda(scores[_engine.Slot.SUMS_DIFFERENCE]):
+            scores[_engine.Slot.NUMBERS_SUM] = \
+                scores[_engine.Slot.MAX] - scores[_engine.Slot.MIN]
+        if column_type.is_lambda(scores[_engine.Slot.COLLECTIONS_SUM]):
+            scores[_engine.Slot.COLLECTIONS_SUM] = _np.sum(
+                scores[_engine.Column.collection_slots_array]
+            )
+        if column_type.is_lambda(scores[_engine.Slot.TOTAL]):
+            scores[_engine.Slot.TOTAL] = _np.sum(
+                scores[_engine.Column.inner_auto_slots_array]
+            )
+        scores = scores[_engine.Column.auto_slots_array].astype(_np.int32)
+
+        column = _np.concatenate(
+            (
+                scores,
                 _np.isin(
                     _engine.Column.fillable_slots_array,
                     next_available_results,
                     assume_unique = True
                 )
-            ],
-            dtype = _np.float32
-        )
-        _np.copyto(
-            column[0],
-            cls.expected_scores[_engine.Column.fillable_slots_array],
-            where = _np.isnan(column[0])
+            )
         )
 
         return column
 
     @classmethod
     def _get_column_representation (cls, column):
-        """(2, n_fillable_slots)"""
         return cls._get_hashable_column_representation(
+            column.type_,
             tuple(column.scores),
             tuple(column.get_next_available_slots())
         )
@@ -249,7 +272,6 @@ class NeuralPlayer (_engine.Player):
         roll,
         announced_columns = None
     ):
-        """(n_columns, 2, n_fillable_slots)"""
         if roll is None:
             roll = _posinf
 
@@ -260,7 +282,10 @@ class NeuralPlayer (_engine.Player):
         if announced_columns is not None:
             for i in announced_columns:
                 if roll > columns[i].after_roll:
-                    columns_representation[i, 1, :] = 0
+                    columns_representation[
+                        i,
+                        len(_engine.Column.auto_slots_array):
+                    ] = 0
 
         return columns_representation
 
@@ -276,13 +301,11 @@ class NeuralPlayer (_engine.Player):
     @classmethod
     @_functools.lru_cache(maxsize = _max_cache_size)
     def _get_roll_representation (cls, roll):
-        """(1,)"""
         return _np.array([ roll ])
 
     @classmethod
     @_functools.lru_cache(maxsize = _max_cache_size)
     def _get_hashable_results_representation (cls, results):
-        """(6,)"""
         bow_results = _np.zeros(len(_engine.Die.sides))
         for r, c in _collections.Counter(results).items():
             bow_results[r - 1] = c
@@ -291,7 +314,6 @@ class NeuralPlayer (_engine.Player):
 
     @classmethod
     def _get_results_representation (cls, results):
-        """(6,)"""
         return cls._get_hashable_results_representation(
             results if isinstance (results, _collections.abc.Hashable)
                 else tuple(results)
@@ -360,7 +382,7 @@ class NeuralPlayer (_engine.Player):
     @classmethod
     def calculate_column_slot_units (cls, n_columns = 4, n_dice = 5):
         return (
-            n_columns * 2 * len(_engine.Column.fillable_slots_array) +
+            n_columns * len(_engine.Slot) +
                 1 +
                 len(_engine.Die.sides),
             n_columns * len(_engine.Column.fillable_slots_array)
@@ -369,7 +391,7 @@ class NeuralPlayer (_engine.Player):
     @classmethod
     def calculate_unlocked_replace_units (cls, n_columns = 4, n_dice = 5):
         return (
-            n_columns * 2 * len(_engine.Column.fillable_slots_array) +
+            n_columns * len(_engine.Slot) +
                 1 +
                 len(_engine.Die.sides),
             len(_engine.Die.sides)

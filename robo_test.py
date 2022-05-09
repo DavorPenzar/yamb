@@ -220,7 +220,7 @@ def _create_next_generation (
                 for k in range(2):
                     unlocked_replace_layers[j][k] += \
                         f * p.unlocked_replace_layers[j][k]
-            for j in range(len(unlocked_replace_layers_centres)):
+            for j in range(len(locked_replace_layers_centres)):
                 for k in range(2):
                     locked_replace_layers[j][k] += \
                         f * p.locked_replace_layers[j][k]
@@ -266,39 +266,50 @@ def main (argv = []):
 
     n_players = 100
     n_generations = 20
-    original_spread = 10
+    top_players = 0.1 + 1.0e-8
+    skip_top = 0.005 + 1.0e-8
+    original_spread = 50.0
 
     players = list(
         _create_random_player(
-            column_slot_hidden_units = (256, 1024, 32),
-            unlocked_replace_hidden_units = (256, 16),
-            locked_replace_hidden_units = (256, 1024, 32),
+            column_slot_hidden_units = (64, 32),
+            unlocked_replace_hidden_units = (32, 16),
+            locked_replace_hidden_units = (32, ),
             random_state = R
         ) for i in range(n_players)
     )
 
     for g in range(n_generations):
-        games = list(
-            _create_new_game(random_state = R) for _ in range(n_players)
-        )
-        scores = list(0 for _ in range(n_players))
+        columns = _np.zeros((0, len(_engine.Slot)), dtype = _np.float32)
+        scores = _np.zeros(n_players, dtype = _np.float32)
 
         for i in range(n_players):
-            games[i] = players[i].play(games[i])
-            games[i].update_auto_slots()
-            scores[i] = games[i].get_total_score(_engine.Slot.TOTAL)
+            game = _create_new_game(random_state = R)
+            game = players[i].play(game)
+            game.update_auto_slots()
 
-        scores = _pd.Series(scores, dtype = _np.float32, name = 'Score')
+            columns = _np.concatenate((columns, game.columns), axis = 0)
+            scores[i] = game.get_total_score(_engine.Slot.TOTAL)
+
+            del game
+
+        scores = _pd.Series(scores, name = 'Score')
 
         print(f"Generation {g + 1:d}:")
         print(scores.describe())
         print('')
 
+        _players.NeuralPlayer.expected_scores = _np.mean(
+            columns,
+            axis = 0,
+            keepdims = False
+        )
+
         players = _create_next_generation(
             players,
             scores,
-            top_players = 0.05,
-            skip_top = 0.00501,
+            top_players = top_players,
+            skip_top = skip_top,
             n_players = n_players,
             spread = original_spread / _math.sqrt(g + 1),
             centre = _np.median,
