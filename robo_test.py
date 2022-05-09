@@ -51,12 +51,12 @@ def _create_random_layers (
 
     for l in list(hidden_units) + [ output_size ]:
         A = _np.require(
-            random_state.normal(size = (l, input_size)),
+            random_state.normal(0, 1, size = (l, input_size)),
             dtype = _np.float32,
             requirements = 'C'
         )
         b = _np.require(
-            random_state.normal(size = l),
+            random_state.normal(0, 1, size = l),
             dtype = _np.float32,
             requirements = 'C'
         )
@@ -103,8 +103,10 @@ def _create_next_generation (
     top_players = 0.1,
     skip_top = 0,
     n_players = None,
+    *,
     spread = 10,
     centre = _np.mean,
+    centre_kwargs = { 'axis': 0, 'keepdims': False },
     random_state = None
 ):
     if random_state is None:
@@ -125,148 +127,144 @@ def _create_next_generation (
 
     players = list(players[i] for i in I)
 
+    del I
+
     column_slot_layers = list()
     unlocked_replace_layers = list()
     locked_replace_layers = list()
-
-    n_column_slot_layers = 0
-    n_unlocked_replace_layers = 0
-    n_locked_replace_layers = 0
-
     for i in range(top_players):
         for j, l in enumerate(players[i].column_slot_layers):
             if len(column_slot_layers) <= j:
                 column_slot_layers.append([ (l[0], l[1]) ])
-                n_column_slot_layers = j + 1
             else:
                 column_slot_layers[j].append((l[0], l[1]))
         for j, l in enumerate(players[i].unlocked_replace_layers):
             if len(unlocked_replace_layers) <= j:
                 unlocked_replace_layers.append([ (l[0], l[1]) ])
-                n_unlocked_replace_layers = j + 1
             else:
                 unlocked_replace_layers[j].append((l[0], l[1]))
         for j, l in enumerate(players[i].locked_replace_layers):
             if len(locked_replace_layers) <= j:
                 locked_replace_layers.append([ (l[0], l[1]) ])
-                n_locked_replace_layers = j + 1
             else:
                 locked_replace_layers[j].append((l[0], l[1]))
 
     column_slot_layers_centres = list(
         (
             centre(
-                list(l[j][0] for j in range(top_players)),
-                axis = 0,
-                keepdims = False
+                list(l[i][0] for i in range(top_players)),
+                **centre_kwargs
             ),
             centre(
-                list(l[j][1] for j in range(top_players)),
-                axis = 0,
-                keepdims = False
+                list(l[i][1] for i in range(top_players)),
+                **centre_kwargs
             )
         ) for l in column_slot_layers
     )
     unlocked_replace_layers_centres = list(
         (
             centre(
-                list(l[j][0] for j in range(top_players)),
-                axis = 0,
-                keepdims = False
+                list(l[i][0] for i in range(top_players)),
+                **centre_kwargs
             ),
             centre(
-                list(l[j][1] for j in range(top_players)),
-                axis = 0,
-                keepdims = False
+                list(l[i][1] for i in range(top_players)),
+                **centre_kwargs
             )
         ) for l in unlocked_replace_layers
     )
     locked_replace_layers_centres = list(
         (
             centre(
-                list(l[j][0] for j in range(top_players)),
-                axis = 0,
-                keepdims = False
+                list(l[i][0] for i in range(top_players)),
+                **centre_kwargs
             ),
             centre(
-                list(l[j][1] for j in range(top_players)),
-                axis = 0,
-                keepdims = False
+                list(l[i][1] for i in range(top_players)),
+                **centre_kwargs
             )
         ) for l in locked_replace_layers
     )
 
-    new_players = list()
-    for i in range(n_players):
-        r, s = tuple(random_state.choice(top_players + i, size = 2, replace = True))
-        a = _np.cast['float32'](random_state.uniform(0, 1, size = None))
-        b = 1 - a
+    del column_slot_layers
+    del unlocked_replace_layers
+    del locked_replace_layers
 
-        p1 = players[r] if r < top_players else new_players[r - top_players]
-        p2 = players[s] if s < top_players else new_players[s - top_players]
+    combo = random_state.uniform(
+        0,
+        1,
+        size = (n_players - top_players, top_players)
+    ).astype(_np.float32)
+    combo /= _np.sum(combo, axis = 1, keepdims = True)
 
-        new_players.append(
-            _players.NeuralPlayer(
-                column_slot_layers = list(
-                    (
-                        column_slot_layers_centres[j][0] +
-                            spread * (
-                                a * p1.column_slot_layers[j][0] +
-                                b * p2.column_slot_layers[j][0] -
-                                column_slot_layers_centres[j][0]
-                            ),
-                        column_slot_layers_centres[j][1] +
-                            spread * (
-                                a * p1.column_slot_layers[j][1] +
-                                b * p2.column_slot_layers[j][1] -
-                                column_slot_layers_centres[j][1]
-                            )
-                    ) for j in range(n_column_slot_layers)
-                ),
-                unlocked_replace_layers = list(
-                    (
-                        unlocked_replace_layers_centres[j][0] +
-                            spread * (
-                                a * p1.unlocked_replace_layers[j][0] +
-                                b * p2.unlocked_replace_layers[j][0] -
-                                unlocked_replace_layers_centres[j][0]
-                            ),
-                        unlocked_replace_layers_centres[j][1] +
-                            spread * (
-                                a * p1.unlocked_replace_layers[j][1] +
-                                b * p2.unlocked_replace_layers[j][1] -
-                                unlocked_replace_layers_centres[j][1]
-                            )
-                    ) for j in range(n_unlocked_replace_layers)
-                ),
-                locked_replace_layers = list(
-                    (
-                        locked_replace_layers_centres[j][0] +
-                            spread * (
-                                a * p1.locked_replace_layers[j][0] +
-                                b * p2.locked_replace_layers[j][0] -
-                                locked_replace_layers_centres[j][0]
-                            ),
-                        locked_replace_layers_centres[j][1] +
-                            spread * (
-                                a * p1.locked_replace_layers[j][1] +
-                                b * p2.locked_replace_layers[j][1] -
-                                locked_replace_layers_centres[j][1]
-                            )
-                    ) for j in range(n_locked_replace_layers)
-                ),
-                announced_columns = 3,
-                update_auto_slots = False,
-                check_input = False
-            )
+    players += list(None for _ in range(n_players - top_players))
+    for i in range(top_players, n_players):
+        column_slot_layers = list(
+            [ _np.zeros_like(l[0]), _np.zeros_like(l[1]) ]
+                for l in column_slot_layers_centres
+        )
+        unlocked_replace_layers = list(
+            [ _np.zeros_like(l[0]), _np.zeros_like(l[1]) ]
+                for l in unlocked_replace_layers_centres
+        )
+        locked_replace_layers = list(
+            [ _np.zeros_like(l[0]), _np.zeros_like(l[1]) ]
+                for l in locked_replace_layers_centres
         )
 
-    return new_players
+        for p, f in zip(players, combo[i - top_players]):
+            for j in range(len(column_slot_layers)):
+                for k in range(2):
+                    column_slot_layers[j][k] += f * p.column_slot_layers[j][k]
+            for j in range(len(unlocked_replace_layers_centres)):
+                for k in range(2):
+                    unlocked_replace_layers[j][k] += \
+                        f * p.unlocked_replace_layers[j][k]
+            for j in range(len(unlocked_replace_layers_centres)):
+                for k in range(2):
+                    locked_replace_layers[j][k] += \
+                        f * p.locked_replace_layers[j][k]
+
+            for j in range(len(column_slot_layers)):
+                for k in range(2):
+                    column_slot_layers[j][k] = \
+                        column_slot_layers_centres[j][k] + \
+                            spread * (
+                                column_slot_layers[j][k] -
+                                column_slot_layers_centres[j][k]
+                            )
+            for j in range(len(unlocked_replace_layers_centres)):
+                for k in range(2):
+                    unlocked_replace_layers[j][k] = \
+                        unlocked_replace_layers_centres[j][k] + \
+                            spread * (
+                                unlocked_replace_layers[j][k] -
+                                unlocked_replace_layers_centres[j][k]
+                            )
+            for j in range(len(locked_replace_layers_centres)):
+                for k in range(2):
+                    locked_replace_layers[j][k] = \
+                        locked_replace_layers_centres[j][k] + \
+                            spread * (
+                                locked_replace_layers[j][k] -
+                                locked_replace_layers_centres[j][k]
+                            )
+
+        players[i] = _players.NeuralPlayer(
+            column_slot_layers = column_slot_layers,
+            unlocked_replace_layers = unlocked_replace_layers_centres,
+            locked_replace_layers = locked_replace_layers_centres,
+            announced_columns = 3,
+            update_auto_slots = False,
+            check_input = False
+        )
+
+    return players
 
 def main (argv = []):
     R = _np.random.default_rng(2022)
 
-    n_players = 1000
+    n_players = 100
     n_generations = 20
     original_spread = 10
 
@@ -300,9 +298,9 @@ def main (argv = []):
             players,
             scores,
             top_players = 0.05,
-            skip_top = 0.005,
+            skip_top = 0.00501,
             n_players = n_players,
-            spread = original_spread / _math.sqrt(i + 1),
+            spread = original_spread / _math.sqrt(g + 1),
             centre = _np.median,
             random_state = R
         )
