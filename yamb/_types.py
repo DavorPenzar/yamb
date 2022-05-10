@@ -26,6 +26,12 @@ if _sys.version_info.major < 3:
 else:
     String.insert(1, bytes)
 String = tuple(String)
+Bytes = [ bytearray, memoryview ]
+if _sys.version_info.major < 3:
+    Bytes.insert(0, str)
+else:
+    Bytes.insert(0, bytes)
+Bytes = tuple(Bytes)
 Number = (_numbers.Number, )
 Complex = (_numbers.Complex, complex)
 Real = (_numbers.Real, )
@@ -44,6 +50,7 @@ NumpyCollection = None
 NumpySequence = None
 NumpyMapping = None
 NumpyString = None
+NumpyBytes = None
 NumpyNumber = None
 NumpyComplex = None
 NumpyReal = None
@@ -60,6 +67,7 @@ if _np is not None:
     NumpySequence = (_np.ndarray, )
     NumpyMapping = ()
     NumpyString = [ _np.str_ ]
+    NumpyBytes = []
     if (
         hasattr(_np, 'unicode_') and
         not (_np.unicode_ is None or _np.unicode_ is _np.str_)
@@ -70,7 +78,9 @@ if _np is not None:
         not (_np.bytes_ is None or _np.bytes_ is _np.str_)
     ):
         NumpyString.append(_np.bytes_)
+        NumpyBytes.append(_np.bytes_)
     NumpyString = tuple(NumpyString)
+    NumpyBytes = tuple(NumpyBytes)
     NumpyNumber = (_np.number, )
     NumpyComplex = (_np.complexfloating, )
     NumpyReal = ()
@@ -105,6 +115,7 @@ AnyCollection = \
 AnySequence = Sequence if NumpySequence is None else Sequence + NumpySequence
 AnyMapping = Mapping if NumpyMapping is None else Mapping + NumpyMapping
 AnyString = String if NumpyString is None else String + NumpyString
+AnyBytes = Bytes if NumpyBytes is None else Bytes + NumpyBytes
 AnyNumber = Number if NumpyNumber is None else Number + NumpyNumber
 AnyComplex = Complex if NumpyComplex is None else Complex + NumpyComplex
 AnyReal = Real if NumpyReal is None else Real + NumpyReal

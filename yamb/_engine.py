@@ -21,7 +21,10 @@
 import abc as _abc
 import collections as _collections
 _collections_abc = getattr(_collections, 'abc', _collections)
+import csv as _csv
 import enum as _enum
+import io as _io
+import os as _os
 import random as _random
 import sys as _sys
 
@@ -41,6 +44,7 @@ from ._types import \
     AnyCollection as _AnyCollection, \
     AnySequence as _AnySequence, \
     AnyString as _AnyString, \
+    AnyBytes as _AnyBytes, \
     AnyNumber as _AnyNumber, \
     AnyInteger as _AnyInteger, \
     AnyBoolean as _AnyBoolean, \
@@ -925,6 +929,84 @@ its values.
 """
         return tuple(s for s in Slot if cls.is_lambda(scores[s]))
 
+    @classmethod
+    def stringify (cls, columns, allow_numpy = True, allow_pandas = True):
+        if columns is None:
+            columns = []
+        elif isinstance(columns, Column):
+            columns = [ columns ]
+        else:
+            columns = list(columns)
+            for c in columns:
+                if not isinstance(c, Column):
+                    raise TypeError(
+                        "Columns must be of type `Column`, column " \
+                            "`{column}` not understood.".format(
+                                column = c
+                            )
+                    )
+
+        if allow_numpy is None:
+            allow_numpy = False
+        elif not isinstance(allow_numpy, _AnyBoolean):
+            raise TypeError("Allow NumPy flag must be a boolean value.")
+        allow_numpy = bool(allow_numpy)
+
+        if allow_pandas is None:
+            allow_pandas = False
+        elif not isinstance(allow_pandas, _AnyBoolean):
+            raise TypeError("Allow Pandas flag must be a boolean value.")
+        allow_pandas = bool(allow_pandas)
+
+        if allow_pandas and _pd is not None:
+            return repr(
+                _pd.concat(
+                    tuple(c.to_pandas(True) for c in columns),
+                    axis = 1
+                )
+            )
+
+        if allow_numpy and _np is not None:
+            table = _np.column_stack(columns).astype(_np.object_)
+            table = _np.insert(
+                table,
+                0,
+                list(c.name for c in columns),
+                axis = 0
+            )
+            table = _np.insert(
+                table,
+                0,
+                [ 'Slot' ] + list(s.name for s in Slot),
+                axis = 1
+            )
+
+            return repr(table)
+
+        str_table = None
+        with (
+            _io.BytesIO() if _sys.version_info.major < 3 else _io.StringIO()
+        ) as output:
+            writer = _csv.writer(
+                output,
+                delimiter = "\t",
+                lineterminator = _os.linesep
+            )
+
+            writer.writerow([ 'Slot' ] + list(c.name for c in columns))
+            writer.writerows(
+                list([ s.name ] + list(c[s] for c in columns) for s in Slot)
+            )
+
+            str_table = output.getvalue()
+            if (
+                isinstance(str_table, _AnyBytes) or
+                not isinstance(str_table, _AnyString)
+            ):
+                str_table = str(str_table.decode('utf-8'))
+
+        return str_table
+
     def __new__ (cls, *args, **kwargs):
         instance = super(Column, cls).__new__(cls)
 
@@ -1722,6 +1804,9 @@ this method as well, but a cautionary dependency check shall be done first.
             name = self._name
         )
 
+    def __repr__ (self):
+        return self._type.stringify(self)
+
     def __array__ (self):
         """Returns the scores aranged into a `numpy.ndarray`.
 
@@ -2227,7 +2312,7 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
     @classmethod
     def _ensure_replacements (cls, n_dice, replace):
         if replace is None:
-            return replace
+            return None
 
         if (
             not isinstance(replace, _AnyIterable) or
@@ -2274,15 +2359,23 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
         return int(column)
 
     @classmethod
-    def _replace_results (cls, old_results, new_results, replace):
+    def _replace_results (
+        cls,
+        old_results,
+        new_results,
+        replace,
+        sort = False
+    ):
         if replace is None:
-            return new_results
+            return list(sorted(new_results))
 
         j = 0
         for i, r in enumerate(replace):
             if r:
                 old_results[i] = new_results[j]
                 j += 1
+        if sort:
+            old_results.sort()
 
         return old_results
 
@@ -2301,6 +2394,7 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
 
         instance._type = None
         instance._check_input = None
+        instance._sort_results = None
         instance._n_dice = None
         instance._n_rolls = None
         instance._dice = None
@@ -2315,6 +2409,7 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
         columns = None,
         n_dice = 5,
         n_rolls = 3,
+        sort_results = False,
         check_input = True,
         random_state = None
     ):
@@ -2325,6 +2420,10 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
         if not isinstance(check_input, _AnyBoolean):
             raise TypeError("Check input flag must be a boolean value.")
         self._check_input = bool(check_input)
+
+        if not isinstance(sort_results, _AnyBoolean):
+            raise TypeError("Sort results flag must be a boolean value.")
+        self._sort_results = bool(sort_results)
 
         if not isinstance(n_dice, _AnyInteger):
             raise TypeError("Number of dice must be an integral value.")
@@ -2432,11 +2531,13 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
             self._n_dice if replace is None else sum(replace)
         )
 
-        self._results = self._type._replace_results(
-            self._results,
-            results,
-            replace
-        )
+        if not (self._roll_index and replace is None):
+            self._results = self._type._replace_results(
+                self._results,
+                results,
+                replace,
+                self._sort_results
+            )
 
         self._roll_index += 1
 
@@ -2522,6 +2623,9 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
             axis = 1
         )
 
+    def __repr__ (self):
+        return Column.stringify(self._columns)
+
     def __array__ (self):
         return _np.column_stack(self._columns)
 
@@ -2541,6 +2645,10 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
     @property
     def n_rolls (self):
         return self._n_rolls
+
+    @property
+    def sort_results (self):
+        return self._sort_results
 
     @property
     def dice (self):
@@ -2603,9 +2711,9 @@ class Player (object if _sys.version_info.major < 3 else _abc.ABC):
 
         if update_auto_slots is None:
             self._update_auto_slots = 0
-        if isinstance(update_auto_slots, _AnyBoolean):
+        elif isinstance(update_auto_slots, _AnyBoolean):
             self._update_auto_slots = int(update_auto_slots)
-        if isinstance(update_auto_slots, _AnyInteger):
+        elif isinstance(update_auto_slots, _AnyInteger):
             if update_auto_slots < 0:
                 raise ValueError(
                     "Update auto slots checkpoint must be grater than or " \
@@ -2668,7 +2776,7 @@ class Player (object if _sys.version_info.major < 3 else _abc.ABC):
         pass
 
     @_abc.abstractmethod
-    def observe_turn_end (self, columns):
+    def observe_turn_end (self, columns, column_index, slot):
         pass
 
     @_abc.abstractmethod
@@ -2785,7 +2893,7 @@ class Player (object if _sys.version_info.major < 3 else _abc.ABC):
             if self._update_auto_slots and not i % self._update_auto_slots:
                 game.update_auto_slots()
 
-            self.observe_turn_end(game.columns)
+            self.observe_turn_end(game.columns, column, slot)
 
         return game
 
@@ -2804,3 +2912,63 @@ class Player (object if _sys.version_info.major < 3 else _abc.ABC):
     @property
     def type_ (self):
         return self._type
+
+class ObservingPlayer (Player):
+    def __new__ (cls, *args, **kwargs):
+        instance = super(ObservingPlayer, cls).__new__(cls)
+
+        instance._player = None
+        instance._output = None
+        instance._line_terminator = None
+
+        return instance
+
+    def __init__ (
+        self,
+        player,
+        name = None,
+        output = _sys.stdout,
+        line_terminator = _os.linesep
+    ):
+        super(ObservingPlayer, self).__init__(
+            name = name,
+            update_auto_slots = False,
+            check_input = False
+        )
+
+        if not isinstance(player, Player):
+            raise TypeError(
+                "Player must be of type `Player`, player {player} is not " \
+                    "understood.".format(
+                        player = player
+                    )
+            )
+        self._player = player
+
+        if output is None:
+            self._output = _sys.stdout
+        else:
+            self._output = output
+
+        if not (name is None or isinstance(name, _AnyString)):
+            raise TypeError("Line terminator must be a string value.")
+        self._line_terminator = str(
+            _os.linesep if line_terminator is None else line_terminator
+        )
+
+    def observe_roll_results (
+        self,
+        columns,
+        locked_column_index,
+        roll,
+        results
+    ):
+        pass
+
+    @property
+    def player (self):
+        return self._player
+
+    @property
+    def output (self):
+        return self._output

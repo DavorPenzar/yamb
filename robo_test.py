@@ -264,7 +264,7 @@ def _create_next_generation (
 def main (argv = []):
     R = _np.random.default_rng(2022)
 
-    n_players = 100
+    n_players = 1000
     n_generations = 20
     top_players = 0.1 + 1.0e-8
     skip_top = 0.005 + 1.0e-8
@@ -272,9 +272,9 @@ def main (argv = []):
 
     players = list(
         _create_random_player(
-            column_slot_hidden_units = (64, 32),
-            unlocked_replace_hidden_units = (32, 16),
-            locked_replace_hidden_units = (32, ),
+            column_slot_hidden_units = (32, 64, 32, 16),
+            unlocked_replace_hidden_units = (16, 32, 16, 8),
+            locked_replace_hidden_units = (8, 16, 8),
             random_state = R
         ) for i in range(n_players)
     )

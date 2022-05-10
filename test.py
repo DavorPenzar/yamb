@@ -40,9 +40,7 @@ class _SimpleConsolePlayer (_engine.Player):
         if roll:
             print(f"Results: {list(results)}")
         else:
-            print(
-                _pd.concat(list(c.to_pandas(True) for c in columns), axis = 1)
-            )
+            print(_engine.Column.stringify(columns))
 
     def choose_pre_filling_action_column (
         self,
@@ -129,10 +127,13 @@ class _SimpleConsolePlayer (_engine.Player):
     ):
         return self._type._get_requirements(requirements)
 
+    def observe_turn_end (self, columns, column_index, slot):
+        print(f"Value: {columns[column_index][slot]}")
+
 def main (argv = []):
     player = _SimpleConsolePlayer(update_auto_slots = True)
 
-    game = player.play()
+    game = player.play(_engine.Yamb(sort_results = True))
 
     print('')
 

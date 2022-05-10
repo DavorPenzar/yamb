@@ -687,7 +687,7 @@ class NeuralPlayer (_engine.Player):
     ):
         return None
 
-    def observe_turn_end (self, columns):
+    def observe_turn_end (self, columns, column_index, slot):
         self._column = 0
         self._slot = 0
 
