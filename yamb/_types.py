@@ -20,17 +20,15 @@ Collection = (_collections_abc.Collection, )
 Sequence = (_collections_abc.Sequence, )
 Mapping = (_collections_abc.Mapping, )
 String = [ str, bytearray, memoryview ]
+Bytes = [ bytearray, memoryview ]
 if _sys.version_info.major < 3:
     String.insert(0, basestring)
     String.insert(2, unicode)
-else:
-    String.insert(1, bytes)
-String = tuple(String)
-Bytes = [ bytearray, memoryview ]
-if _sys.version_info.major < 3:
     Bytes.insert(0, str)
 else:
+    String.insert(1, bytes)
     Bytes.insert(0, bytes)
+String = tuple(String)
 Bytes = tuple(Bytes)
 Number = (_numbers.Number, )
 Complex = (_numbers.Complex, complex)

@@ -387,13 +387,24 @@ This class also provides some auxiliary class variables such as:
 * `collection_slots`: a set of collection slots (`Slot.TWO_PAIRS` through
     `Slot.YAMB`),
 * `fillable_slots`: a set of all fillable slots (union of the previous three),
+* `inner_auto_slots`: a set of slots calculated directly from scores of
+    fillable slots, i. e. automatic slots excluding the grand total
+    (`Slot.NUMBERS_SUM`, `Slot.SUMS_DIFFERENCE` and `Slot.COLLECTIONS_SUM`),
+* `outer_auto_slots`: a set of slots calculated from other slots but not
+    directly from fillable slots, i. e. the grand total (`Slot.TOTAL`),
 * `auto_slots`: a set of slots calculated from scores of fillable slots
-    (complement of the previous),
-* `slots`: a set of all slots (union of the previous two).
+    (union of the previous two),
+* `slots`: a set of all slots (union of `fillable_slots` and `auto_slots`).
 
 The former slots are all instances of the built-in `frozenset` class and are
 intended not to be altered, but only used for checks and to help implementing
-custom columns.
+custom columns.  Additionally, if NumPy is available, for each set of slots
+there is also a `numpy.ndarray` called `*_array`
+(e. g. `fillable_slots_array`), which is a one-dimensional integer array (slot
+index values) sorted ascendingly.  If Pandas is available, there are also
+`pandas.Index`es called `*_index` and `*_str_index`, of which the former is an
+integer index (similar to the array but a `pandas.Index`), and the second is a
+string index (slot names).
 
 Another special class variable is the `lambda_score`, originally set to
 ``None``, which is used to represent a score that is not yet filled in.  If
@@ -414,6 +425,9 @@ Instance variables defined and used by the `Column` class are the following:
 * `_type`: actual class of the current column (`type`; originally
     ``self.__class__``; used for referencing the correct class methods in case
     of overrides and may be altered to redirect class method calls),
+* `_rollable`: a flag indicating whether or not the column allows next dice
+    rolls (`bool`; see `disallow_rolls`, `allow_rolls` and `can_roll` methods
+    for more information),
 * `_locked`: a flag indicating whether or not the column is locked (`bool`;
     see `lock`, `unlock` and `is_locked` methods for more information)
 * `_name`: name of the column (`str`),
@@ -535,46 +549,47 @@ method.
     if _pd is not None:
         _pd_1_or_higher = \
             _np.lib.NumpyVersion(_pd.__version__) >= _np.lib.NumpyVersion('1.0.0')
+        _int_dtype = int if _np is None else _np.int32
         _str_dtype = _pd.StringDtype() if _pd_1_or_higher else str
 
         number_slots_index = _pd.Index(
             list(sorted(number_slots)),
-            dtype = int,
+            dtype = _int_dtype,
             name = 'Slot'
         )
         sum_slots_index = _pd.Index(
             list(sorted(sum_slots)),
-            dtype = int,
+            dtype = _int_dtype,
             name = 'Slot'
         )
         collection_slots_index = _pd.Index(
             list(sorted(collection_slots)),
-            dtype = int,
+            dtype = _int_dtype,
             name = 'Slot'
         )
         fillable_slots_index = _pd.Index(
             list(sorted(fillable_slots)),
-            dtype = int,
+            dtype = _int_dtype,
             name = 'Slot'
         )
         inner_auto_slots_index = _pd.Index(
             list(sorted(inner_auto_slots)),
-            dtype = int,
+            dtype = _int_dtype,
             name = 'Slot'
         )
         outer_auto_slots_index = _pd.Index(
             list(sorted(outer_auto_slots)),
-            dtype = int,
+            dtype = _int_dtype,
             name = 'Slot'
         )
         auto_slots_index = _pd.Index(
             list(sorted(auto_slots)),
-            dtype = int,
+            dtype = _int_dtype,
             name = 'Slot'
         )
         slots_index = _pd.Index(
             list(sorted(slots)),
-            dtype = int,
+            dtype = _int_dtype,
             name = 'Slot'
         )
 
@@ -930,11 +945,57 @@ its values.
         return tuple(s for s in Slot if cls.is_lambda(scores[s]))
 
     @classmethod
-    def stringify (cls, columns, allow_numpy = True, allow_pandas = True):
-        if columns is None:
-            columns = []
-        elif isinstance(columns, Column):
-            columns = [ columns ]
+    def display (cls, columns, allow_numpy = True, allow_pandas = True):
+        """Returns a "nice" way to display columns.
+
+This function is intended for printing/displaying single and multiple columns
+in a human-friendly readable format.  The returned value might not always be a
+string (`str`), but calling ``print(Column.display(columns))`` in console or
+``display(Column.display(columns))`` in IPython/Jupyter should give you the
+best output in the operating environment.
+
+Parameters
+----------
+columns : Column or iterable[Column]
+    Column(s) to display.
+
+allow_numpy : boolean, default = True
+    If ``True`` and NumPy is available, the returned value may be a
+    `numpy.ndarray`.
+
+allow_pandas : boolean, default = True
+    If ``True`` and Pandas is available, the returned value may be a
+    `pandas.Series` or a `pandas.DataFrame`.
+
+Returns
+-------
+str or unicode or numpy.ndarray or pandas.Series or pandas.DataFrame
+    The appropriate representation of the `columns`.
+
+Notes
+-----
+The order of preference for the returned value is the following:
+
+1. Pandas objects (`pandas.Series` or `pandas.DataFrame`),
+2. `numpy.ndarray`,
+3. `str` or `unicode` (the latter only in Python 2).
+
+Setting flags for Pandas and NumPy to ``False`` eliminates them from the order
+of preference, even if the optional dependencies are available.
+
+A `pandas.Series` may only be returned if Pandas is both allowed and available
+and if `columns` is a single column (but not an iterable containing a single
+column).
+
+When a string is returned, it is actually a tab-separated (``"\\t"``) vertical
+table.  Usual CSV/TSV/DSV (comma-, tab- or delimiter-separated values) rules
+apply while building the table.
+"""
+        single_column = False
+
+        if isinstance(columns, Column):
+            columns = (columns, )
+            single_column = True
         else:
             columns = list(columns)
             for c in columns:
@@ -946,51 +1007,73 @@ its values.
                             )
                     )
 
-        if allow_numpy is None:
-            allow_numpy = False
-        elif not isinstance(allow_numpy, _AnyBoolean):
+        if not isinstance(allow_numpy, _AnyBoolean):
             raise TypeError("Allow NumPy flag must be a boolean value.")
         allow_numpy = bool(allow_numpy)
 
-        if allow_pandas is None:
-            allow_pandas = False
-        elif not isinstance(allow_pandas, _AnyBoolean):
+        if not isinstance(allow_pandas, _AnyBoolean):
             raise TypeError("Allow Pandas flag must be a boolean value.")
         allow_pandas = bool(allow_pandas)
 
         if allow_pandas and _pd is not None:
-            return repr(
-                _pd.concat(
-                    tuple(c.to_pandas(True) for c in columns),
-                    axis = 1
+            table = None
+            if single_column:
+                table = _pd.Series(
+                    columns[0],
+                    index = cls.slots_str_index,
+                    name = columns[0].name
                 )
-            )
+            elif len(columns):
+                table = _pd.concat(
+                    tuple(_pd.Series(c, name = c._name) for c in columns),
+                    axis = 1,
+                    ignore_index = True
+                )
+                table.index = cls.slots_str_index
+            else:
+                table = _pd.DataFrame(
+                    list([] for _ in Slot),
+                    index = cls.slots_str_index
+                )
+
+            return table
 
         if allow_numpy and _np is not None:
-            table = _np.column_stack(columns).astype(_np.object_)
+            table = None
+            if len(columns):
+                table = _np.column_stack(columns).astype(_np.object_)
+                table = _np.insert(
+                    table,
+                    0,
+                    list(s.name for s in Slot),
+                    axis = 1
+                )
+            else:
+                table = _np.array(
+                    list([ s.name ] for s in Slot),
+                    dtype = _np.object_
+                )
             table = _np.insert(
                 table,
                 0,
-                list(c.name for c in columns),
+                [ 'Slot' ] + list(c.name for c in columns),
                 axis = 0
             )
-            table = _np.insert(
-                table,
-                0,
-                [ 'Slot' ] + list(s.name for s in Slot),
-                axis = 1
-            )
 
-            return repr(table)
+            return table
 
-        str_table = None
+        table = None
         with (
             _io.BytesIO() if _sys.version_info.major < 3 else _io.StringIO()
         ) as output:
             writer = _csv.writer(
                 output,
                 delimiter = "\t",
-                lineterminator = _os.linesep
+                doublequote = True,
+                escapechar = None,
+                lineterminator = _os.linesep,
+                quotechar = "\"",
+                quoting = _csv.QUOTE_MINIMAL
             )
 
             writer.writerow([ 'Slot' ] + list(c.name for c in columns))
@@ -998,14 +1081,14 @@ its values.
                 list([ s.name ] + list(c[s] for c in columns) for s in Slot)
             )
 
-            str_table = output.getvalue()
+            table = output.getvalue()
             if (
-                isinstance(str_table, _AnyBytes) or
-                not isinstance(str_table, _AnyString)
+                isinstance(table, _AnyBytes) or
+                not isinstance(table, _AnyString)
             ):
-                str_table = str(str_table.decode('utf-8'))
+                table = table.decode('utf-8')
 
-        return str_table
+        return table
 
     def __new__ (cls, *args, **kwargs):
         instance = super(Column, cls).__new__(cls)
@@ -1069,7 +1152,8 @@ Notes
 -----
 By default, this method raises a `TypeError`.  Override this method if the
 column should be lockable/unlockable by setting the `_rollable` instance
-variable to ``False``.
+variable to ``False``.  Also, when using the method, lock the column via the
+`lock` method to prevent users from avoiding the rule.
 """
         raise TypeError(
             "{column} cannot disallow rolls.".format(column = self._type)
@@ -1805,7 +1889,7 @@ this method as well, but a cautionary dependency check shall be done first.
         )
 
     def __repr__ (self):
-        return self._type.stringify(self)
+        return str(self._type.display(self))
 
     def __array__ (self):
         """Returns the scores aranged into a `numpy.ndarray`.
@@ -2624,7 +2708,7 @@ numpy.random.BitGenerator or module[random] or module[numpy.random], optional
         )
 
     def __repr__ (self):
-        return Column.stringify(self._columns)
+        return str(Column.display(self._columns))
 
     def __array__ (self):
         return _np.column_stack(self._columns)

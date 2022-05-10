@@ -342,7 +342,13 @@ def boost_yamb (cls = _Yamb, class_name = None):
         boosted = True
 
         @classmethod
-        def _replace_results (cls, old_results, new_results, replace, sort = False):
+        def _replace_results (
+            cls,
+            old_results,
+            new_results,
+            replace,
+            sort = False
+        ):
             if not isinstance(old_results, _np.ndarray):
                 old_results = _np.asanyarray(old_results)
             if replace is None:
@@ -350,7 +356,10 @@ def boost_yamb (cls = _Yamb, class_name = None):
 
             old_results[replace] = new_results
             if sort:
-                old_results.sort()
+                if old_results.flags.owndata and old_results.flags.writeable:
+                    old_results.sort()
+                else:
+                    old_results = _np.sort(old_results)
 
             return old_results
 

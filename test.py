@@ -40,7 +40,7 @@ class _SimpleConsolePlayer (_engine.Player):
         if roll:
             print(f"Results: {list(results)}")
         else:
-            print(_engine.Column.stringify(columns))
+            print(_engine.Column.display(columns))
 
     def choose_pre_filling_action_column (
         self,
