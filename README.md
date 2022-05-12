@@ -68,7 +68,7 @@ The intended usage was actually to develop an automated computer player of the g
 
 1. finishing the game engine&mdash;finishing the `yamb.Yamb` class (mostly inline documentation, but also code revision and possible changes), finishing the `yamb` [*Python*](http://docs.python.org/) package,
 2. developing an automated player through:
-    * finishing the neural network based player ([`NuralPlayer`](robo_players.py#L46)) (mostly inline documentation),
+    * finishing the neural network based player ([`NeuralPlayer`](robo_players.py#L46)) (mostly inline documentation),
     * generation of many such players through [evolutionary algorithms (EA)](http://en.wikipedia.org/wiki/Evolutionary_algorithm) and seeing if their parameters and performance converges
         * results from [*expected_scores.csv*](expected_scores.csv)/[*expected_scores_us.csv*](expected_scores_us.csv) are used for filling missing (not yet filled) slots in the first generation, but subsequent generations should use averages from the previous generation,
     * hyperparameter optimisation of the [EA](http://en.wikipedia.org/wiki/Evolutionary_algorithm) approach.
