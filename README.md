@@ -70,7 +70,7 @@ The intended usage was actually to develop an automated computer player of the g
 2. developing an automated player through:
     * finishing the neural network based player ([`NuralPlayer`](robo_players.py#L46)) (mostly inline documentation),
     * generation of many such players through [evolutionary algorithms (EA)](http://en.wikipedia.org/wiki/Evolutionary_algorithm) and seeing if their parameters and performance converges
-        * results from [*expected_results.csv*](expected_results.csv)/[*expected_results_us.csv*](expected_results_us.csv) are used for filling missing (not yet filled) slots in the first generation, but subsequent generations should use averages from the previous generation,
+        * results from [*expected_scores.csv*](expected_scores.csv)/[*expected_scores_us.csv*](expected_scores_us.csv) are used for filling missing (not yet filled) slots in the first generation, but subsequent generations should use averages from the previous generation,
     * hyperparameter optimisation of the [EA](http://en.wikipedia.org/wiki/Evolutionary_algorithm) approach.
 
 If needed, the game engine may be altered/optimised before the development of such players if significant bottlenecks are diagnosed during the process. Alternatively, use `yamb.booster` submodule (and optimise it if needed, as well).
