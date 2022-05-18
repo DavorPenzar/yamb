@@ -81,7 +81,7 @@ Finally, when such players are developed, a user interface around the game may b
 
 The game may be played solitaire or multiplayer. The rules are the same, but, when played multiplayer, the players take turns rather than one player waiting until the other player(s) are finished. The upper bound of the number of players does not exist, but keep in mind that the game does not last short even if played singleplayer.
 
-The game is played using 5 dice. In each turn, the player may roll the dice no more than three times. Also, in all rolls except the first one, the player may choose which dice they would like to roll, and which they would like to keep from the previous rolls (a die that was not rolled in the second roll but kept from the first roll may still be rolled in the third roll). At the end of the turn, the player uses values of the dice after the final roll (all 5 dice, including the ones kept from previous rolls). These values are used for filling game columns. In each turn, only one slot in only one column may be filled. When a slot is filled, it cannot be overwritten later.
+The game is played using 5 dice. In each turn, the player may roll the dice no more than three times. Also, in all rolls except the first one, the player may choose which dice they would like to roll, and which they would like to keep from the previous rolls (a die that was not rolled in the second roll but kept from the first roll may still be rolled in the third roll). At the end of the turn, the player uses the values of the dice after the final roll (all 5 dice, including the ones kept from previous rolls). These values are used for filling game columns. In each turn, only one slot in only one column may (and must) be filled. When a slot is filled, it cannot be overwritten later.
 
 Each column has its own rules regarding the order of filling slots, but scoring is common to all columns. Slots, descriptions and scores are presented in the table below (see below table why some slots are printed in bold):
 
@@ -96,31 +96,35 @@ Each column has its own rules regarding the order of filling slots, but scoring 
 | **Sum**         | Sum of *one*, *two*, &hellip;, *six*                                  | [one] + [two] + &hellip; + [six]; if &ge; 60, add 30 |
 | Min             | Minimum                                                               | Sum of all 5 dice                                    |
 | Max             | Maximum                                                               | Sum of all 5 dice                                    |
-| **Difference**  | Difference between *max* and *min* times ones                         | [one] &times; ([max] - [min])                        |
+| **Difference**  | Difference between *max* and *min* multiplied by *one*                | [one] &times; ([max] - [min])                        |
 | Two pairs       | Two distinct values appearing at least twice                          | Sum of the 4 dice making the pairs + 10              |
-| Straight        | 5 consecutive values (1, 2, &hellip;, 5 or 2, 3, &hellip;, 6)         | 35 if lower (to 5), 45 if upper (to 6)               |
+| Straight        | 5 consecutive values (1, 2, &hellip;, 5 or 2, 3, &hellip;, 6)         | 35 if lower (up to 5), 45 if upper (up to 6)         |
 | Full house      | One value appearing thrice, another (different) value appearing twice | Sum of all 5 dice + 30                               |
 | Carriage        | One value appearing at least four times                               | Sum of the 4 dice making the carriage + 40           |
 | Yamb            | All five dice showing the same value                                  | Sum of all 5 dice + 50                               |
 | **Collections** | Sum of *two pairs*, *straight*, &hellip;, *yamb*                      | [two pairs] + [straight] + &hellip; + [yamb]         |
 | **Total**       | Final score                                                           | [sum] + [difference] + [collections]                 |
 
-At the end of each turn the player must choose one of the thirteen non-bold slots to fill in; the other four bold slots are only used to calculate the player's final score. If the player chooses to fill in a slot, but the dice do not show valid values for the slot, the slot is filled with a score of 0 (e. g. if the dice do not all show the same value, but the player chooses to fill in *yamb*, they fill the slot with a score of 0). A slot filled with a score of 0 is still considered filled and cannot be overwritten later.
+At the end of each turn the player must choose one of the thirteen non-bold slots to fill in (in the column they have chosen to fill); the other four bold slots are only used to calculate the player's final score. If the player chooses to fill in a slot, but the dice do not show valid values for the slot, the slot is filled with a score of 0 (e. g. if the dice do not all show the same value, but the player chooses to fill in *yamb*, they fill the slot with a score of 0). A slot filled with a score of 0 is still considered filled and cannot be overwritten later. Obviously, slots *min* and *max* cannot be filled with a value of 0 in any case. For every other slot there exists a combination of values that would yield a value of 0 for the slot. Note that if *one* is filled with a 0, then *difference* is 0 regardless of *min* and *max*; if *min* &gt; *max*, then *difference* &ge; 0.
 
-In a standard game of yamb, the player has a table of 4 columns:
+In a standard game of yamb, the player has a table of 4 columns to fill:
 
 1. down &ndash; the column is filled from top to bottom as in the previous table (e. g. *six* cannot be filled until all other numbers are filled),
 2. up &ndash; the column is filled from bottom to top as in the previous table (e. g. *full house* cannot be filled until *yamb* and *carriage* are filled),
 3. free &ndash; the column is filled freely, in no specific order,
-4. announce &ndash; the player must announce the slot after the first roll (and they must fill this column at that slot at the end of the turn).
+4. announce &ndash; the player must announce the slot after the first roll (and they must fill that slot in this column at the end of the turn).
+
+Obviously, in columns *down* and *up* the intermediate subtotal slots (*sum*, *difference* and *collections*), as well as the *total*, are ignored when observing the order of filling.
 
 Popular additional and/or alternative columns are:
 
-1. up-down &ndash; the column is filled from top to bottom and from bottom to top as in the previous table (e. g. *min* cannot be filled until all numbers or *max* and all collections are filled),
-4. hand &ndash; must be filled immediately after the first roll (similar to the *announce* column, but consecutive rolls in the turn are not allowed),
+1. up-down &ndash; the column is filled from top to bottom and from bottom to top as in the previous table (e. g. *min* cannot be filled until all numbers, or *max* and all collections, are filled),
+4. hand &ndash; must be filled immediately after the first roll (similar to the *announce* column, but subsequent rolls in the turn are not allowed),
 2. middle &ndash; the column is filled from *min* upwards and *max* downwards,
 3. late announce &ndash; the slot is announced after the second roll,
-5. counter-announce (only available when played multiplayer) &ndash; the player must fill the same slot that the player before him has announced in their previous turn.
+5. counter-announce (only available when played multiplayer) &ndash; the player must fill the same slot that the player before him has announced in their previous turn (and, in that case, the slot and the column must be filled, without a possibility of a choice).
+
+The combination of columns to play must be defined before the game has started. If played multiplayer, all players must play the same combination (each player has their own table to fill, but their tables consist of the same column types).
 
 The game ends when all columns are completely filled. The player's final score is then calculated as the sum of *totals* per columns. The higher the final score the better (as one can conclude from the rules of scoring slots). If played multiplayer, the player with the highest score wins.
 
